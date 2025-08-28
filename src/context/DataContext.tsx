@@ -30,6 +30,7 @@ export interface Destination {
 export interface Package {
   id: string;
   name: string;
+  typeId?: number;
   destinations: string[];
   hotels: string[];
   duration: number;
@@ -39,6 +40,8 @@ export interface Package {
   itinerary: string[];
   image: string;
   description: string;
+  validFrom?: string | null;
+  validTo?: string | null;
 }
 
 export interface Customer {
@@ -197,17 +200,89 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setDestinations(prev => prev.filter(d => d.id !== id));
   };
 
-  // Package methods
+  // Package methods (backend-backed)
   const addPackage = (pkg: Omit<Package, 'id'>) => {
-    setPackages(prev => [...prev, { ...pkg, id: Date.now().toString() }]);
+    (async () => {
+      try {
+        const payload: any = {
+          name: pkg.name,
+          code: (pkg.name || '').toLowerCase().replace(/\s+/g, '-').slice(0, 32),
+          description: pkg.description,
+          type: pkg.typeId ?? 1,
+          durationDays: pkg.duration,
+          durationNights: Math.max((pkg.duration || 0) - 1, 0),
+          validFrom: pkg.validFrom ?? null,
+          validTo: pkg.validTo ?? null,
+          destinationId: pkg.destinations?.[0] ? Number(pkg.destinations[0]) : undefined,
+          hotelId: pkg.hotels?.[0] ? Number(pkg.hotels[0]) : undefined,
+        };
+        const created = await TravelService.createPackage(payload);
+        const mapped: Package = {
+          id: String(created.id),
+          name: created.name,
+          destinations: created.destinationId ? [String(created.destinationId)] : [],
+          hotels: created.hotelId ? [String(created.hotelId)] : [],
+          duration: Number(created.durationDays ?? payload.durationDays ?? 0),
+          basePrice: 0,
+          inclusions: [],
+          exclusions: [],
+          itinerary: [],
+          image: pkg.image,
+          description: created.description || pkg.description || '',
+        };
+        setPackages(prev => [...prev, mapped]);
+      } catch (e) {
+        console.error('Failed to create package', e);
+      }
+    })();
   };
 
   const updatePackage = (id: string, pkg: Partial<Package>) => {
-    setPackages(prev => prev.map(p => p.id === id ? { ...p, ...pkg } : p));
+    (async () => {
+      try {
+        const payload: any = {
+          name: pkg.name,
+          description: pkg.description,
+          type: pkg.typeId,
+          durationDays: pkg.duration,
+          durationNights: typeof pkg.duration === 'number' ? Math.max(pkg.duration - 1, 0) : undefined,
+          validFrom: pkg.validFrom,
+          validTo: pkg.validTo,
+          destinationId: pkg.destinations?.[0] ? Number(pkg.destinations[0]) : undefined,
+          hotelId: pkg.hotels?.[0] ? Number(pkg.hotels[0]) : undefined,
+        };
+        const updated = await TravelService.updatePackage(id, payload);
+        const mappedPartial: Partial<Package> = {
+          name: updated?.name ?? pkg.name,
+          destinations: (updated?.destinationId !== undefined)
+            ? [String(updated.destinationId)]
+            : pkg.destinations,
+          hotels: (updated?.hotelId !== undefined)
+            ? [String(updated.hotelId)]
+            : pkg.hotels,
+          duration: (updated?.durationDays !== undefined)
+            ? Number(updated.durationDays)
+            : pkg.duration,
+          description: updated?.description ?? pkg.description,
+        };
+        setPackages(prev => prev.map(p => p.id === id ? { ...p, ...mappedPartial } : p));
+      } catch (e) {
+        console.error('Failed to update package', e);
+      }
+    })();
   };
 
   const deletePackage = (id: string) => {
-    setPackages(prev => prev.filter(p => p.id !== id));
+    (async () => {
+      try {
+        const ok = await TravelService.archivePackage(id);
+        if (ok) {
+          setPackages(prev => prev.filter(p => p.id !== id));
+        }
+      } catch (e) {
+        console.error('Failed to delete package', e);
+      }
+    })();
   };
 
   // Customer methods
@@ -287,6 +362,34 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setHotels(withImages);
       } catch (e) {
         console.error('Failed to load hotels', e);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await TravelService.getPackages({ page: 1, size: 12 });
+        const items = res.data || [];
+        const mapped: Package[] = items.map((p: any) => ({
+          id: String(p.id),
+          name: p.name,
+          typeId: typeof p.type === 'number' ? p.type : undefined,
+          destinations: p.destinationId ? [String(p.destinationId)] : [],
+          hotels: p.hotelId ? [String(p.hotelId)] : [],
+          duration: Number(p.durationDays ?? 0),
+          basePrice: 0,
+          inclusions: [],
+          exclusions: [],
+          itinerary: [],
+          image: 'https://images.unsplash.com/photo-1630528059126-222d0ddbaf4f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=1080',
+          description: p.description || '',
+          validFrom: p.validFrom ?? null,
+          validTo: p.validTo ?? null,
+        }));
+        setPackages(mapped);
+      } catch (e) {
+        console.error('Failed to load packages', e);
       }
     })();
   }, []);

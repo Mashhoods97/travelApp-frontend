@@ -398,21 +398,92 @@ export class TravelService {
    * Get travel packages
    */
   static async getPackages(
-    params: PaginationParams & QueryParams = { page: 1, limit: 10 }
+    params: QueryParams = { page: 1, size: 10 }
   ): Promise<PaginatedResponse<any>> {
     try {
-      const response = await apiClient.get<PaginatedResponse<any>>(
-        API_ENDPOINTS.TRAVEL.PACKAGES,
+      const response = await apiClient.get<ApiResponse<any>>(
+        API_ENDPOINTS.PACKAGE.PAGED,
         { params }
       );
-      
-      if (response.data.success) {
-        return response.data;
+      const payload = response.data;
+      if (payload.success && payload.data) {
+        const page = payload.data;
+        const content = (page.content || []).map((p: any) => ({
+          id: String(p.id),
+          name: p.name,
+          code: p.code,
+          description: p.description,
+          type: p.type,
+          durationDays: p.durationDays,
+          durationNights: p.durationNights,
+          validFrom: p.validFrom,
+          validTo: p.validTo,
+          destinationId: p.destinationId,
+          hotelId: p.hotelId,
+        }));
+        const normalized: PaginatedResponse<any> = {
+          success: true,
+          statusCode: payload.status ?? 200,
+          data: content,
+          message: payload.message,
+          pagination: {
+            page: page.currentPage ?? params.page ?? 1,
+            limit: page.pageSize ?? params.size ?? 10,
+            total: page.totalElements ?? content.length,
+            totalPages: page.totalPages ?? 1,
+            hasNext: page.hasNext ?? false,
+            hasPrev: page.hasPrevious ?? false,
+          },
+        };
+        return normalized;
       }
-      
-      throw new Error(response.data.message || 'Failed to fetch packages');
+      throw new Error(payload.message || 'Failed to fetch packages');
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to fetch packages');
+    }
+  }
+
+  static async createPackage(payload: any): Promise<any> {
+    try {
+      const response = await apiClient.post<ApiResponse<any>>(
+        API_ENDPOINTS.PACKAGE.BASE,
+        payload
+      );
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      throw new Error(response.data.message || 'Failed to create package');
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to create package');
+    }
+  }
+
+  static async updatePackage(id: string | number, payload: any): Promise<any> {
+    try {
+      const response = await apiClient.put<ApiResponse<any>>(
+        API_ENDPOINTS.PACKAGE.BY_ID(id),
+        payload
+      );
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      throw new Error(response.data.message || 'Failed to update package');
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to update package');
+    }
+  }
+
+  static async archivePackage(id: string | number): Promise<boolean> {
+    try {
+      const response = await apiClient.delete<ApiResponse<null>>(
+        API_ENDPOINTS.PACKAGE.BY_ID(id)
+      );
+      if (response.data.success) {
+        return true;
+      }
+      throw new Error(response.data.message || 'Failed to delete package');
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to delete package');
     }
   }
 }

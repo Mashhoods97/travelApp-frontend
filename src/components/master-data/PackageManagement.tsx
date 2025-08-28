@@ -11,6 +11,7 @@ import { Badge } from '../ui/badge';
 import { Checkbox } from '../ui/checkbox';
 import { Package as PackageIcon, Plus, Edit, Trash2, Calendar, DollarSign, MapPin, Building2 } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
+import { PACKAGE_TYPE_OPTIONS } from '../../lib/api/constants';
 
 export function PackageManagement() {
   const { packages, addPackage, updatePackage, deletePackage, destinations, hotels } = useData();
@@ -18,6 +19,7 @@ export function PackageManagement() {
   const [editingPackage, setEditingPackage] = useState<Package | null>(null);
   const [formData, setFormData] = useState({
     name: '',
+    typeId: 1 as number,
     destinations: [] as string[],
     hotels: [] as string[],
     duration: 7,
@@ -26,7 +28,9 @@ export function PackageManagement() {
     exclusions: [] as string[],
     itinerary: [] as string[],
     image: '',
-    description: ''
+    description: '',
+    validFrom: '' as string | '' ,
+    validTo: '' as string | '' ,
   });
   const [inclusionInput, setInclusionInput] = useState('');
   const [exclusionInput, setExclusionInput] = useState('');
@@ -39,6 +43,8 @@ export function PackageManagement() {
     
     const packageData = {
       ...formData,
+      validFrom: formData.validFrom || null,
+      validTo: formData.validTo || null,
       image: formData.image || defaultImage
     };
     
@@ -55,6 +61,7 @@ export function PackageManagement() {
   const resetForm = () => {
     setFormData({
       name: '',
+      typeId: 1,
       destinations: [],
       hotels: [],
       duration: 7,
@@ -63,7 +70,9 @@ export function PackageManagement() {
       exclusions: [],
       itinerary: [],
       image: '',
-      description: ''
+      description: '',
+      validFrom: '',
+      validTo: '',
     });
     setInclusionInput('');
     setExclusionInput('');
@@ -75,6 +84,7 @@ export function PackageManagement() {
     setEditingPackage(pkg);
     setFormData({
       name: pkg.name,
+      typeId: pkg.typeId ?? 1,
       destinations: pkg.destinations,
       hotels: pkg.hotels,
       duration: pkg.duration,
@@ -83,7 +93,9 @@ export function PackageManagement() {
       exclusions: pkg.exclusions,
       itinerary: pkg.itinerary,
       image: pkg.image,
-      description: pkg.description
+      description: pkg.description,
+      validFrom: (pkg.validFrom ?? '') as string,
+      validTo: (pkg.validTo ?? '') as string,
     });
     setIsDialogOpen(true);
   };
@@ -206,15 +218,55 @@ export function PackageManagement() {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="image">Image URL (optional)</Label>
+                        <Label htmlFor="type">Package Type</Label>
+                        <Select
+                          value={String(formData.typeId)}
+                          onValueChange={(val) => setFormData({ ...formData, typeId: parseInt(val) })}
+                        >
+                          <SelectTrigger id="type">
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PACKAGE_TYPE_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={String(opt.value)}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="validFrom">Valid From</Label>
                         <Input
-                          id="image"
-                          type="url"
-                          value={formData.image}
-                          onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                          placeholder="https://example.com/package-image.jpg"
+                          id="validFrom"
+                          type="date"
+                          value={formData.validFrom || ''}
+                          onChange={(e) => setFormData({ ...formData, validFrom: e.target.value })}
                         />
                       </div>
+                      <div>
+                        <Label htmlFor="validTo">Valid To</Label>
+                        <Input
+                          id="validTo"
+                          type="date"
+                          value={formData.validTo || ''}
+                          onChange={(e) => setFormData({ ...formData, validTo: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="image">Image URL (optional)</Label>
+                      <Input
+                        id="image"
+                        type="url"
+                        value={formData.image}
+                        onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                        placeholder="https://example.com/package-image.jpg"
+                      />
                     </div>
 
                     <div>

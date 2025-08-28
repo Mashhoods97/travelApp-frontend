@@ -11,6 +11,12 @@ const apiClient: AxiosInstance = axios.create({
   withCredentials: true, // Include credentials for CORS
 });
 
+// Debug base URL when logging is enabled
+if (API_CONFIG.ENABLE_LOGGING) {
+  // eslint-disable-next-line no-console
+  console.info('[API] Base URL:', API_CONFIG.BASE_URL);
+}
+
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   (config) => {

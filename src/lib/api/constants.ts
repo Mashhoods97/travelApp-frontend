@@ -39,6 +39,11 @@ export const API_ENDPOINTS = {
     BY_ID: (id: string | number) => `/hotels/${id}`,
     PAGED: '/hotels/paged',
   },
+  PACKAGE: {
+    BASE: '/packages',
+    BY_ID: (id: string | number) => `/packages/${id}`,
+    PAGED: '/packages/paged',
+  },
 } as const;
 
 // User Types (static, globally reusable)
@@ -80,6 +85,19 @@ export const API_STATUS = {
   ERROR: 'error',
   LOADING: 'loading',
 } as const;
+
+// Package Types (static mapping to numeric IDs expected by backend)
+export const PACKAGE_TYPES = {
+  GROUP: 1,
+  PRIVATE: 2,
+} as const;
+
+export type PackageTypeKey = keyof typeof PACKAGE_TYPES;
+export type PackageTypeId = typeof PACKAGE_TYPES[PackageTypeKey];
+
+export const PACKAGE_TYPE_OPTIONS: Array<{ label: PackageTypeKey; value: PackageTypeId }> = (
+  Object.keys(PACKAGE_TYPES) as PackageTypeKey[]
+).map((k) => ({ label: k, value: PACKAGE_TYPES[k] }));
 
 // Error Messages
 export const ERROR_MESSAGES = {
