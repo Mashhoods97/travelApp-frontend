@@ -1,134 +1,23 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useData, Destination } from '../../context/DataContext';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Badge } from '../ui/badge';
 import { MapPin, Plus, Edit, Trash2, Globe } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import TravelService from '../../lib/api/services/travelService';
+import { useNavigate } from 'react-router-dom';
 
 export function DestinationManagement() {
-  const { destinations, addDestination, updateDestination, deleteDestination } = useData();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingDestination, setEditingDestination] = useState<Destination | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    slug: '',
-    country: '',
-    region: '',
-    description: '',
-    language: '',
-    currency: '',
-    image: '',
-    popularAttractions: [] as string[]
-  });
-  const [attractionInput, setAttractionInput] = useState('');
-
-  const defaultImage = "https://images.unsplash.com/photo-1755702525927-c0a7d6adb3a3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0cmF2ZWwlMjBkZXN0aW5hdGlvbiUyMHRyb3BpY2FsfGVufDF8fHx8MTc1NTg2ODIwOXww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral";
-
-  const slugify = (value: string) =>
-    value
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const destinationData = {
-      ...formData,
-      image: formData.image || defaultImage,
-    };
-
-    try {
-      if (editingDestination) {
-        const apiId = (editingDestination as any).backendId || editingDestination.id;
-        await TravelService.updateDestination(apiId, {
-          name: destinationData.name,
-          slug: destinationData.slug || slugify(destinationData.name),
-          country: destinationData.country,
-          region: destinationData.region || undefined,
-          description: destinationData.description,
-          language: destinationData.language || undefined,
-          currency: destinationData.currency || undefined,
-        });
-        const updated = await TravelService.getDestinationById(String(apiId));
-        updateDestination(editingDestination.id, {
-          name: updated.name,
-          slug: updated.slug,
-          country: updated.country,
-          region: updated.region,
-          description: updated.description,
-          language: updated.language,
-          currency: updated.currency,
-          image: destinationData.image,
-        });
-      } else {
-        const created = await TravelService.createDestination({
-          name: destinationData.name,
-          slug: destinationData.slug || slugify(destinationData.name),
-          country: destinationData.country,
-          region: destinationData.region || undefined,
-          description: destinationData.description,
-          language: destinationData.language || undefined,
-          currency: destinationData.currency || undefined,
-        });
-        addDestination({
-          id: created.id,
-          name: created.name,
-          slug: created.slug,
-          country: created.country,
-          region: created.region,
-          description: created.description,
-          language: created.language,
-          currency: created.currency,
-          image: destinationData.image,
-          popularAttractions: destinationData.popularAttractions,
-        });
-      }
-      resetForm();
-      setIsDialogOpen(false);
-    } catch (err) {
-      console.error('Destination save failed', err);
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      slug: '',
-      country: '',
-      region: '',
-      description: '',
-      language: '',
-      currency: '',
-      image: '',
-      popularAttractions: []
-    });
-    setAttractionInput('');
-    setEditingDestination(null);
-  };
+  const navigate = useNavigate();
+  const { destinations, deleteDestination } = useData();
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [list, setList] = useState<Destination[]>(destinations);
 
   const handleEdit = (destination: Destination) => {
-    setEditingDestination(destination);
-    setFormData({
-      name: destination.name,
-      slug: destination.slug || '',
-      country: destination.country,
-      region: destination.region || '',
-      description: destination.description,
-      language: destination.language || '',
-      currency: destination.currency || '',
-      image: destination.image,
-      popularAttractions: destination.popularAttractions
-    });
-    setIsDialogOpen(true);
+    navigate(`/destinations/${(destination as any).backendId || destination.id}`);
   };
 
   const handleDelete = async (destinationId: string) => {
@@ -144,21 +33,33 @@ export function DestinationManagement() {
     }
   };
 
-  const addAttraction = () => {
-    if (attractionInput.trim() && !formData.popularAttractions.includes(attractionInput.trim())) {
-      setFormData({
-        ...formData,
-        popularAttractions: [...formData.popularAttractions, attractionInput.trim()]
-      });
-      setAttractionInput('');
-    }
-  };
+  useEffect(() => {
+    setList(destinations);
+  }, [destinations]);
 
-  const removeAttraction = (attraction: string) => {
-    setFormData({
-      ...formData,
-      popularAttractions: formData.popularAttractions.filter(a => a !== attraction)
-    });
+  const performSearch = async () => {
+    try {
+      setLoading(true);
+      const res = await TravelService.getDestinations({ page: 1, size: 12, name: search || undefined });
+      const items = (res.data || []).map((d: any) => ({
+        id: String(d.id),
+        backendId: Number(d.id),
+        name: d.name,
+        slug: d.slug,
+        country: d.country,
+        region: d.region,
+        description: d.description,
+        language: d.language,
+        currency: d.currency,
+        image: 'https://images.unsplash.com/photo-1755702525927-c0a7d6adb3a3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=1080',
+        popularAttractions: [],
+      } as Destination));
+      setList(items);
+    } catch (e) {
+      console.error('Search failed', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -166,7 +67,7 @@ export function DestinationManagement() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex items-center gap-3">
               <CardTitle className="flex items-center space-x-2">
                 <MapPin className="w-5 h-5" />
                 <span>Destination Management</span>
@@ -175,144 +76,19 @@ export function DestinationManagement() {
                 Manage travel destinations and popular attractions
               </CardDescription>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={resetForm}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Destination
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingDestination ? 'Edit Destination' : 'Add New Destination'}
-                  </DialogTitle>
-                  <DialogDescription>
-                    {editingDestination ? 'Update destination information' : 'Add a new destination to your catalog'}
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit}>
-                  <div className="space-y-4 max-h-96 overflow-y-auto">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="name">Destination Name</Label>
-                        <Input
-                          id="name"
-                          value={formData.name}
-                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="slug">Slug</Label>
-                        <Input
-                          id="slug"
-                          value={formData.slug}
-                          onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                          placeholder="auto-generated if left blank"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="country">Country</Label>
-                        <Input
-                          id="country"
-                          value={formData.country}
-                          onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="region">Region</Label>
-                        <Input
-                          id="region"
-                          value={formData.region}
-                          onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="image">Image URL (optional)</Label>
-                      <Input
-                        id="image"
-                        type="url"
-                        value={formData.image}
-                        onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                        placeholder="https://example.com/destination-image.jpg"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="description">Description</Label>
-                      <Textarea
-                        id="description"
-                        value={formData.description}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        rows={3}
-                        required
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="language">Language</Label>
-                        <Input
-                          id="language"
-                          value={formData.language}
-                          onChange={(e) => setFormData({ ...formData, language: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="currency">Currency</Label>
-                        <Input
-                          id="currency"
-                          value={formData.currency}
-                          onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label>Popular Attractions</Label>
-                      <div className="flex space-x-2 mt-2">
-                        <Input
-                          value={attractionInput}
-                          onChange={(e) => setAttractionInput(e.target.value)}
-                          placeholder="Add attraction"
-                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addAttraction())}
-                        />
-                        <Button type="button" onClick={addAttraction}>Add</Button>
-                      </div>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {formData.popularAttractions.map((attraction) => (
-                          <Badge
-                            key={attraction}
-                            variant="secondary"
-                            className="cursor-pointer"
-                            onClick={() => removeAttraction(attraction)}
-                          >
-                            {attraction} ×
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <DialogFooter className="mt-6">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">
-                      {editingDestination ? 'Update' : 'Create'} Destination
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <div className="flex items-center gap-2">
+              <Input placeholder="Search by name" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" />
+              <Button variant="outline" onClick={performSearch} disabled={loading}>Search</Button>
+              <Button onClick={() => navigate('/destinations/new')}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Destination
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {destinations.map((destination) => (
+            {list.map((destination) => (
               <Card key={destination.id} className="overflow-hidden">
                 <div className="aspect-video relative overflow-hidden">
                   <ImageWithFallback

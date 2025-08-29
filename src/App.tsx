@@ -11,6 +11,9 @@ import { CustomerManagement } from './components/customers/CustomerManagement';
 import { QuotationManagement } from './components/quotations/QuotationManagement';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
+import DestinationFormPage from './components/master-data/DestinationFormPage';
+import HotelFormPage from './components/master-data/HotelFormPage';
+import PackageFormPage from './components/master-data/PackageFormPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import queryClient from './lib/api/queryClient';
@@ -33,8 +36,14 @@ function AppContent() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/users" element={<UserManagement />} />
             <Route path="/hotels" element={<HotelManagement />} />
+            <Route path="/hotels/new" element={<HotelFormPage />} />
+            <Route path="/hotels/:id" element={<HotelFormPage />} />
             <Route path="/destinations" element={<DestinationManagement />} />
+            <Route path="/destinations/new" element={<DestinationFormPage />} />
+            <Route path="/destinations/:id" element={<DestinationFormPage />} />
             <Route path="/packages" element={<PackageManagement />} />
+            <Route path="/packages/new" element={<PackageFormPage />} />
+            <Route path="/packages/:id" element={<PackageFormPage />} />
             <Route path="/customers" element={<CustomerManagement />} />
             <Route path="/quotations" element={<QuotationManagement />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -458,6 +458,20 @@ export class TravelService {
     }
   }
 
+  static async getPackageById(id: string | number): Promise<any> {
+    try {
+      const response = await apiClient.get<ApiResponse<any>>(
+        API_ENDPOINTS.PACKAGE.BY_ID(id)
+      );
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      throw new Error(response.data.message || 'Package not found');
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Package not found');
+    }
+  }
+
   static async updatePackage(id: string | number, payload: any): Promise<any> {
     try {
       const response = await apiClient.put<ApiResponse<any>>(

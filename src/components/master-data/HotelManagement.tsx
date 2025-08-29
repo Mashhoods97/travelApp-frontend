@@ -10,11 +10,16 @@ import { Badge } from '../ui/badge';
 import { Building2, Plus, Edit, Trash2, Star, MapPin, DollarSign } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import TravelService from '../../lib/api/services/travelService';
+import { useNavigate } from 'react-router-dom';
 
 export function HotelManagement() {
+  const navigate = useNavigate();
   const { hotels, addHotel, updateHotel, deleteHotel } = useData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingHotel, setEditingHotel] = useState<Hotel | null>(null);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [list, setList] = useState<Hotel[]>(hotels);
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
@@ -111,27 +116,7 @@ export function HotelManagement() {
   };
 
   const handleEdit = (hotel: Hotel) => {
-    setEditingHotel(hotel);
-    const amenMap = Array.isArray((hotel as any).amenities)
-      ? (hotel.amenities as string[]).reduce<Record<string, any>>((acc, key) => {
-          if (key) acc[key] = 'yes';
-          return acc;
-        }, {})
-      : ((hotel as any).amenities || {});
-    setFormData({
-      name: hotel.name,
-      slug: hotel.slug || '',
-      address: (hotel as any).address || hotel.location || '',
-      phone: (hotel as any).phone || '',
-      description: hotel.description,
-      destinationId: String((hotel as any).destinationId || ''),
-      starRating: Number((hotel as any).starRating || hotel.rating || 0),
-      checkInTime: (hotel as any).checkInTime || '14:00',
-      checkOutTime: (hotel as any).checkOutTime || '12:00',
-      amenities: amenMap,
-      image: hotel.image,
-    });
-    setIsDialogOpen(true);
+    navigate(`/hotels/${(hotel as any).backendId || hotel.id}`);
   };
 
   const handleDelete = async (hotelId: string) => {
@@ -175,6 +160,39 @@ export function HotelManagement() {
     })();
   }, []);
 
+  useEffect(() => {
+    setList(hotels);
+  }, [hotels]);
+
+  const performSearch = async () => {
+    try {
+      setLoading(true);
+      const res = await TravelService.getHotels({ page: 1, size: 12, name: search || undefined });
+      const items = (res.data || []).map((h: any) => {
+        const amenitiesMap = (h.amenities || {}) as Record<string, any>;
+        const amenityList = Object.entries(amenitiesMap)
+          .filter(([, v]) => v === true || v === 'yes' || v === 'Yes' || v === 'YES')
+          .map(([k]) => k);
+        return {
+          id: String(h.id),
+          backendId: Number(h.id),
+          name: h.name,
+          location: h.address || '',
+          rating: Number(h.starRating ?? 0),
+          pricePerNight: 0,
+          amenities: amenityList,
+          image: 'https://images.unsplash.com/photo-1731080647266-85cf1bc27162?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=1080',
+          description: h.description || '',
+        } as Hotel;
+      });
+      setList(items);
+    } catch (e) {
+      console.error('Search failed', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
@@ -198,7 +216,16 @@ export function HotelManagement() {
                 Manage your hotel inventory and partnerships
               </CardDescription>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <div className="flex items-center gap-2">
+              <Input placeholder="Search by name" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" />
+              <Button variant="outline" onClick={performSearch} disabled={loading}>Search</Button>
+              <Button onClick={() => navigate('/hotels/new')}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Hotel
+              </Button>
+            </div>
+            {/* Keeping form markup below for reference but not used since we navigate to new page */}
+            {/* <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button onClick={resetForm}>
                   <Plus className="w-4 h-4 mr-2" />
@@ -331,12 +358,12 @@ export function HotelManagement() {
                   </DialogFooter>
                 </form>
               </DialogContent>
-            </Dialog>
+            </Dialog> */}
           </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {hotels.map((hotel) => (
+            {list.map((hotel) => (
               <Card key={hotel.id} className="overflow-hidden">
                 <div className="aspect-video relative overflow-hidden">
                   <ImageWithFallback

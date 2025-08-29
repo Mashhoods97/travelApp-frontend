@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useData, Package } from '../../context/DataContext';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -6,17 +6,22 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Badge } from '../ui/badge';
 import { Checkbox } from '../ui/checkbox';
 import { Package as PackageIcon, Plus, Edit, Trash2, Calendar, DollarSign, MapPin, Building2 } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { PACKAGE_TYPE_OPTIONS } from '../../lib/api/constants';
+import TravelService from '../../lib/api/services/travelService';
+import { useNavigate } from 'react-router-dom';
 
 export function PackageManagement() {
+  const navigate = useNavigate();
   const { packages, addPackage, updatePackage, deletePackage, destinations, hotels } = useData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState<Package | null>(null);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [list, setList] = useState<Package[]>(packages);
   const [formData, setFormData] = useState({
     name: '',
     typeId: 1 as number,
@@ -81,23 +86,7 @@ export function PackageManagement() {
   };
 
   const handleEdit = (pkg: Package) => {
-    setEditingPackage(pkg);
-    setFormData({
-      name: pkg.name,
-      typeId: pkg.typeId ?? 1,
-      destinations: pkg.destinations,
-      hotels: pkg.hotels,
-      duration: pkg.duration,
-      basePrice: pkg.basePrice,
-      inclusions: pkg.inclusions,
-      exclusions: pkg.exclusions,
-      itinerary: pkg.itinerary,
-      image: pkg.image,
-      description: pkg.description,
-      validFrom: (pkg.validFrom ?? '') as string,
-      validTo: (pkg.validTo ?? '') as string,
-    });
-    setIsDialogOpen(true);
+    navigate(`/packages/${(pkg as any).backendId || pkg.id}`);
   };
 
   const handleDelete = (packageId: string) => {
@@ -149,12 +138,44 @@ export function PackageManagement() {
     return hotels.filter(h => hotelIds.includes(h.id));
   };
 
+  useEffect(() => {
+    setList(packages);
+  }, [packages]);
+
+  const performSearch = async () => {
+    try {
+      setLoading(true);
+      const res = await TravelService.getPackages({ page: 1, size: 12, name: search || undefined, code: search || undefined });
+      const items = (res.data || []).map((p: any) => ({
+        id: String(p.id),
+        name: p.name,
+        typeId: typeof p.type === 'number' ? p.type : undefined,
+        destinations: p.destinationId ? [String(p.destinationId)] : [],
+        hotels: p.hotelId ? [String(p.hotelId)] : [],
+        duration: Number(p.durationDays ?? 0),
+        basePrice: 0,
+        inclusions: [],
+        exclusions: [],
+        itinerary: [],
+        image: 'https://images.unsplash.com/photo-1630528059126-222d0ddbaf4f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=1080',
+        description: p.description || '',
+        validFrom: p.validFrom ?? null,
+        validTo: p.validTo ?? null,
+      } as Package));
+      setList(items);
+    } catch (e) {
+      console.error('Search failed', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex items-center gap-3">
               <CardTitle className="flex items-center space-x-2">
                 <PackageIcon className="w-5 h-5" />
                 <span>Package Management</span>
@@ -163,7 +184,16 @@ export function PackageManagement() {
                 Create and manage travel packages with destinations and hotels
               </CardDescription>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <div className="flex items-center gap-2">
+              <Input placeholder="Search by name or code" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" />
+              <Button variant="outline" onClick={performSearch} disabled={loading}>Search</Button>
+              <Button onClick={() => navigate('/packages/new')}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Package
+              </Button>
+            </div>
+            {/* Original modal-based form retained below for reference but not used */}
+            {/* <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button onClick={resetForm}>
                   <Plus className="w-4 h-4 mr-2" />
@@ -416,12 +446,12 @@ export function PackageManagement() {
                   </DialogFooter>
                 </form>
               </DialogContent>
-            </Dialog>
+            </Dialog> */}
           </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {packages.map((pkg) => {
+            {list.map((pkg) => {
               const packageDestinations = getPackageDestinations(pkg.destinations);
               const packageHotels = getPackageHotels(pkg.hotels);
               
