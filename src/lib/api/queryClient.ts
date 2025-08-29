@@ -33,6 +33,13 @@ export const queryClient = new QueryClient({
       
       // Refetch on mount
       refetchOnMount: true,
+      
+      // Global error handler for queries
+      onError: (error: any) => {
+        if (API_CONFIG.ENABLE_LOGGING) {
+          console.error('Query error:', error);
+        }
+      },
     },
     mutations: {
       // Retry mutations on network errors
@@ -48,24 +55,13 @@ export const queryClient = new QueryClient({
       
       // Retry delay for mutations
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
-    },
-  },
-});
-
-// Global error handler
-queryClient.setDefaultOptions({
-  queries: {
-    onError: (error: any) => {
-      if (API_CONFIG.ENABLE_LOGGING) {
-        console.error('Query error:', error);
-      }
-    },
-  },
-  mutations: {
-    onError: (error: any) => {
-      if (API_CONFIG.ENABLE_LOGGING) {
-        console.error('Mutation error:', error);
-      }
+      
+      // Global error handler for mutations
+      onError: (error: any) => {
+        if (API_CONFIG.ENABLE_LOGGING) {
+          console.error('Mutation error:', error);
+        }
+      },
     },
   },
 });
