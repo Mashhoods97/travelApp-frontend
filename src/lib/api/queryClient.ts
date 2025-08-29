@@ -33,13 +33,6 @@ export const queryClient = new QueryClient({
       
       // Refetch on mount
       refetchOnMount: true,
-      
-      // Global error handler for queries
-      onError: (error: any) => {
-        if (API_CONFIG.ENABLE_LOGGING) {
-          console.error('Query error:', error);
-        }
-      },
     },
     mutations: {
       // Retry mutations on network errors
