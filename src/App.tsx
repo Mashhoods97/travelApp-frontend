@@ -8,12 +8,13 @@ import { HotelManagement } from './components/master-data/HotelManagement';
 import { DestinationManagement } from './components/master-data/DestinationManagement';
 import { PackageManagement } from './components/master-data/PackageManagement';
 import { CustomerManagement } from './components/customers/CustomerManagement';
-import { QuotationManagement } from './components/quotations/QuotationManagement';
+import { QuotationManagement } from './components/master-data/QuotationManagement';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import DestinationFormPage from './components/master-data/DestinationFormPage';
 import HotelFormPage from './components/master-data/HotelFormPage';
 import PackageFormPage from './components/master-data/PackageFormPage';
+import QuotationFormPage from './components/master-data/QuotationForm';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import queryClient from './lib/api/queryClient';
@@ -46,6 +47,8 @@ function AppContent() {
             <Route path="/packages/:id" element={<PackageFormPage />} />
             <Route path="/customers" element={<CustomerManagement />} />
             <Route path="/quotations" element={<QuotationManagement />} />
+            <Route path="/quotations/new" element={<QuotationFormPage />} /> 
+            <Route path="/quotations/:id" element={<QuotationFormPage />} /> 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </main>
@@ -64,7 +67,6 @@ export default function App() {
           </DataProvider>
         </AuthProvider>
       </Router>
-
     </QueryClientProvider>
   );
 }
