@@ -15,35 +15,84 @@ export class AuthService {
    */
   static async signIn(credentials: SignInRequest): Promise<AuthResponse> {
     try {
+      console.log('[AuthService] SignIn called with:', credentials);
+      console.log('[AuthService] Endpoint:', API_ENDPOINTS.AUTH.SIGNIN);
+      console.log('[AuthService] Base URL:', apiClient.defaults.baseURL);
+      console.log('[AuthService] Full URL will be:', apiClient.defaults.baseURL + API_ENDPOINTS.AUTH.SIGNIN);
+      console.log('[AuthService] Request payload:', JSON.stringify(credentials));
+      console.log('[AuthService] About to make POST request...');
+      
       const response = await apiClient.post<BackendSignInResponse>(
         API_ENDPOINTS.AUTH.SIGNIN,
         credentials
       );
+      
+      console.log('[AuthService] Request completed, response received');
+      console.log('[AuthService] Full response object:', response);
+      console.log('[AuthService] Response status:', response.status);
+      console.log('[AuthService] Response data:', JSON.stringify(response.data, null, 2));
+      
       const payload = response.data;
+      
+      // Handle different response formats
+      let responseData: any = null;
+      
+      // Format 1: { success: true, data: { ... } }
       if (payload.success && payload.data) {
-        const d = payload.data;
+        responseData = payload.data;
+        console.log('[AuthService] Using wrapped response format (success.data)');
+      }
+      // Format 2: Direct data response { accessToken: ..., id: ..., ... }
+      else if (payload.accessToken || payload.token) {
+        responseData = payload;
+        console.log('[AuthService] Using direct response format');
+      }
+      // Format 3: Response is the data itself
+      else if (payload.id || payload.email) {
+        responseData = payload;
+        console.log('[AuthService] Using flat response format');
+      }
+      
+      if (responseData) {
+        // Extract token (could be accessToken, token, or jwt)
+        const token = responseData.accessToken || responseData.token || responseData.jwt || '';
+        
+        if (!token) {
+          console.error('[AuthService] No token found in response:', responseData);
+          throw new Error('No authentication token received from server');
+        }
+        
+        // Build user object with flexible field mapping
         const normalized: AuthResponse = {
-          token: d.accessToken,
+          token: token,
           user: {
-            id: d.id,
-            username: d.username,
-            email: d.email,
-            roleId: d.roleId,
-            roleName: d.roleName,
-            privileges: d.privileges,
-            type: d.type,
+            id: responseData.id || responseData.userId || '',
+            username: responseData.username || responseData.userName || responseData.email || '',
+            email: responseData.email || '',
+            roleId: responseData.roleId || responseData.role?.id || responseData.roleId,
+            roleName: responseData.roleName || responseData.role?.name || responseData.role?.title || responseData.role || '',
+            privileges: responseData.privileges || responseData.permissions || [],
+            type: responseData.type || responseData.userType,
           },
         };
+        
+        console.log('[AuthService] Normalized response:', normalized);
+        
         // Persist for client
         localStorage.setItem('authToken', normalized.token);
         localStorage.setItem('user', JSON.stringify(normalized.user));
+        console.log('[AuthService] SignIn successful, token saved');
         return normalized;
       }
       
-      throw new Error(payload.message || 'Sign in failed');
+      console.error('[AuthService] Unexpected response format:', payload);
+      throw new Error(payload.message || payload.error || 'Sign in failed - unexpected response format');
     } catch (error: any) {
-      console.error('Sign in error:', error);
-      throw new Error(error.response?.data?.message || 'Sign in failed');
+      console.error('[AuthService] SignIn error details:', error);
+      console.error('[AuthService] Error message:', error.message);
+      console.error('[AuthService] Error response:', error.response);
+      console.error('[AuthService] Error config:', error.config);
+      throw new Error(error.response?.data?.message || error.message || 'Sign in failed');
     }
   }
 

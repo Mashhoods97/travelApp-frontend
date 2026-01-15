@@ -103,101 +103,159 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-// Mock data
-const mockHotels: Hotel[] = [
-  {
-    id: '1',
-    name: 'Grand Palace Hotel',
-    location: 'Bangkok, Thailand',
-    rating: 5,
-    pricePerNight: 200,
-    amenities: ['Pool', 'Spa', 'WiFi', 'Restaurant'],
-    image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500',
-    description: 'Luxury hotel in the heart of Bangkok'
-  },
-  {
-    id: '2',
-    name: 'Sunset Beach Resort',
-    location: 'Phuket, Thailand',
-    rating: 4,
-    pricePerNight: 150,
-    amenities: ['Beach Access', 'Pool', 'WiFi', 'Bar'],
-    image: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=500',
-    description: 'Beautiful beachfront resort'
-  }
-];
-
-const mockDestinations: Destination[] = [];
-
-const mockPackages: Package[] = [
-  {
-    id: '1',
-    name: 'Thailand Explorer',
-    destinations: ['1', '2'],
-    hotels: ['1', '2'],
-    duration: 7,
-    basePrice: 1500,
-    inclusions: ['Flights', 'Hotels', 'Breakfast', 'Airport Transfer'],
-    exclusions: ['Lunch', 'Dinner', 'Personal Expenses'],
-    itinerary: ['Day 1: Arrival in Bangkok', 'Day 2-4: Bangkok sightseeing', 'Day 5-7: Phuket beaches'],
-    image: 'https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=500',
-    description: 'Complete Thailand experience combining city and beach'
-  }
-];
-
-const mockCustomers: Customer[] = [
-  {
-    id: '1',
-    name: 'Alice Johnson',
-    email: 'alice@example.com',
-    phone: '+1234567890',
-    type: 'INDIVIDUAL',
-    address: '123 Main St, New York',
-    preferences: ['Beach', 'Culture']
-  },
-  {
-    id: '2',
-    name: 'Bob Smith',
-    email: 'bob@corporatetravel.com',
-    phone: '+1234567891',
-    type: 'B2B_CLIENT',
-    companyName: 'Corporate Travel Solutions',
-    address: '456 Business Ave, Chicago',
-    preferences: ['Business Travel', 'Conferences']
-  }
-];
-
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [hotels, setHotels] = useState<Hotel[]>(mockHotels);
-  const [destinations, setDestinations] = useState<Destination[]>(mockDestinations);
-  const [packages, setPackages] = useState<Package[]>(mockPackages);
-  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
+  const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [packages, setPackages] = useState<Package[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
 
   // Hotel methods
-  const addHotel = (hotel: Omit<Hotel, 'id'>) => {
-    setHotels(prev => [...prev, { ...hotel, id: Date.now().toString() }]);
+  const addHotel = async (hotel: Omit<Hotel, 'id'>) => {
+    try {
+      const payload: any = {
+        name: hotel.name,
+        slug: hotel.name.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-'),
+        address: hotel.location,
+        description: hotel.description,
+        destinationId: 0, // Should be provided
+        starRating: hotel.rating,
+        checkInTime: '14:00',
+        checkOutTime: '12:00',
+        amenities: hotel.amenities.reduce((acc, amenity) => ({ ...acc, [amenity]: 'yes' }), {}),
+      };
+      const created = await TravelService.createHotel(payload);
+      const newHotel: Hotel = {
+        id: String(created.id),
+        backendId: Number(created.id),
+        name: created.name,
+        location: created.address || '',
+        rating: Number(created.starRating || 0),
+        pricePerNight: 0,
+        amenities: Object.keys(created.amenities || {}).filter(k => {
+          const v = (created.amenities as any)[k];
+          return v === true || v === 'yes' || v === 'Yes' || v === 'YES';
+        }),
+        image: hotel.image,
+        description: created.description || '',
+      };
+      setHotels(prev => [...prev, newHotel]);
+    } catch (error) {
+      console.error('Failed to create hotel', error);
+      throw error;
+    }
   };
 
-  const updateHotel = (id: string, hotel: Partial<Hotel>) => {
-    setHotels(prev => prev.map(h => h.id === id ? { ...h, ...hotel } : h));
+  const updateHotel = async (id: string, hotel: Partial<Hotel>) => {
+    try {
+      const backendId = hotels.find(h => h.id === id)?.backendId || id;
+      const payload: any = {
+        name: hotel.name,
+        address: hotel.location,
+        description: hotel.description,
+        starRating: hotel.rating,
+        amenities: hotel.amenities?.reduce((acc, amenity) => ({ ...acc, [amenity]: 'yes' }), {}),
+      };
+      const updated = await TravelService.updateHotel(backendId, payload);
+      setHotels(prev => prev.map(h => h.id === id ? {
+        ...h,
+        name: updated.name || h.name,
+        location: updated.address || h.location,
+        rating: Number(updated.starRating ?? h.rating),
+        amenities: Object.keys(updated.amenities || {}).filter(k => {
+          const v = (updated.amenities as any)[k];
+          return v === true || v === 'yes' || v === 'Yes' || v === 'YES';
+        }),
+        description: updated.description || h.description,
+      } : h));
+    } catch (error) {
+      console.error('Failed to update hotel', error);
+      throw error;
+    }
   };
 
-  const deleteHotel = (id: string) => {
-    setHotels(prev => prev.filter(h => h.id !== id));
+  const deleteHotel = async (id: string) => {
+    try {
+      const backendId = hotels.find(h => h.id === id)?.backendId || id;
+      await TravelService.archiveHotel(backendId);
+      setHotels(prev => prev.filter(h => h.id !== id));
+    } catch (error) {
+      console.error('Failed to delete hotel', error);
+      throw error;
+    }
   };
 
   // Destination methods
-  const addDestination = (destination: Omit<Destination, 'id'> & { id: string }) => {
-    setDestinations(prev => [...prev, destination]);
+  const addDestination = async (destination: Omit<Destination, 'id'> & { id: string }) => {
+    try {
+      const payload: any = {
+        name: destination.name,
+        slug: destination.slug || destination.name.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-'),
+        country: destination.country,
+        region: destination.region,
+        description: destination.description,
+        language: destination.language,
+        currency: destination.currency,
+      };
+      const created = await TravelService.createDestination(payload);
+      const newDestination: Destination = {
+        id: String(created.id),
+        backendId: Number(created.id),
+        name: created.name,
+        slug: created.slug,
+        country: created.country,
+        region: created.region,
+        description: created.description,
+        language: created.language,
+        currency: created.currency,
+        image: destination.image,
+        popularAttractions: [],
+      };
+      setDestinations(prev => [...prev, newDestination]);
+    } catch (error) {
+      console.error('Failed to create destination', error);
+      throw error;
+    }
   };
 
-  const updateDestination = (id: string, destination: Partial<Destination>) => {
-    setDestinations(prev => prev.map(d => d.id === id ? { ...d, ...destination } : d));
+  const updateDestination = async (id: string, destination: Partial<Destination>) => {
+    try {
+      const backendId = destinations.find(d => d.id === id)?.backendId || id;
+      const payload: any = {
+        name: destination.name,
+        slug: destination.slug,
+        country: destination.country,
+        region: destination.region,
+        description: destination.description,
+        language: destination.language,
+        currency: destination.currency,
+      };
+      const updated = await TravelService.updateDestination(backendId, payload);
+      setDestinations(prev => prev.map(d => d.id === id ? {
+        ...d,
+        name: updated.name || d.name,
+        slug: updated.slug || d.slug,
+        country: updated.country || d.country,
+        region: updated.region || d.region,
+        description: updated.description || d.description,
+        language: updated.language || d.language,
+        currency: updated.currency || d.currency,
+      } : d));
+    } catch (error) {
+      console.error('Failed to update destination', error);
+      throw error;
+    }
   };
 
-  const deleteDestination = (id: string) => {
-    setDestinations(prev => prev.filter(d => d.id !== id));
+  const deleteDestination = async (id: string) => {
+    try {
+      const backendId = destinations.find(d => d.id === id)?.backendId || id;
+      await TravelService.archiveDestination(backendId);
+      setDestinations(prev => prev.filter(d => d.id !== id));
+    } catch (error) {
+      console.error('Failed to delete destination', error);
+      throw error;
+    }
   };
 
   // Package methods (backend-backed)
@@ -286,29 +344,150 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Customer methods
-  const addCustomer = (customer: Omit<Customer, 'id'>) => {
-    setCustomers(prev => [...prev, { ...customer, id: Date.now().toString() }]);
+  const addCustomer = async (customer: Omit<Customer, 'id'>) => {
+    try {
+      const payload: any = {
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        type: customer.type,
+        companyName: customer.companyName,
+        address: customer.address,
+        preferences: customer.preferences,
+      };
+      const created = await TravelService.createCustomer(payload);
+      const newCustomer: Customer = {
+        id: String(created.id),
+        name: created.name || customer.name,
+        email: created.email || customer.email,
+        phone: created.phone || customer.phone,
+        type: created.type || customer.type,
+        companyName: created.companyName,
+        address: created.address || customer.address,
+        preferences: created.preferences || customer.preferences,
+      };
+      setCustomers(prev => [...prev, newCustomer]);
+    } catch (error) {
+      console.error('Failed to create customer', error);
+      throw error;
+    }
   };
 
-  const updateCustomer = (id: string, customer: Partial<Customer>) => {
-    setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...customer } : c));
+  const updateCustomer = async (id: string, customer: Partial<Customer>) => {
+    try {
+      const backendId = customers.find(c => c.id === id)?.id || id;
+      const payload: any = {
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        type: customer.type,
+        companyName: customer.companyName,
+        address: customer.address,
+        preferences: customer.preferences,
+      };
+      const updated = await TravelService.updateCustomer(backendId, payload);
+      setCustomers(prev => prev.map(c => c.id === id ? {
+        ...c,
+        name: updated.name || c.name,
+        email: updated.email || c.email,
+        phone: updated.phone || c.phone,
+        type: updated.type || c.type,
+        companyName: updated.companyName ?? c.companyName,
+        address: updated.address || c.address,
+        preferences: updated.preferences || c.preferences,
+      } : c));
+    } catch (error) {
+      console.error('Failed to update customer', error);
+      throw error;
+    }
   };
 
-  const deleteCustomer = (id: string) => {
-    setCustomers(prev => prev.filter(c => c.id !== id));
+  const deleteCustomer = async (id: string) => {
+    try {
+      const backendId = customers.find(c => c.id === id)?.id || id;
+      await TravelService.archiveCustomer(backendId);
+      setCustomers(prev => prev.filter(c => c.id !== id));
+    } catch (error) {
+      console.error('Failed to delete customer', error);
+      throw error;
+    }
   };
 
   // Quotation methods
-  const addQuotation = (quotation: Omit<Quotation, 'id'>) => {
-    setQuotations(prev => [...prev, { ...quotation, id: Date.now().toString() }]);
+  const addQuotation = async (quotation: Omit<Quotation, 'id'>) => {
+    try {
+      const payload: any = {
+        customerId: Number(quotation.customerId),
+        packageId: Number(quotation.packageId),
+        createdBy: Number(quotation.createdBy),
+        validUntil: quotation.validUntil,
+        totalPrice: quotation.totalPrice,
+        discount: quotation.discount,
+        finalPrice: quotation.finalPrice,
+        status: quotation.status,
+        notes: quotation.notes,
+      };
+      const created = await TravelService.createQuotation(payload);
+      const newQuotation: Quotation = {
+        id: String(created.id),
+        customerId: String(created.customerId || quotation.customerId),
+        packageId: String(created.packageId || quotation.packageId),
+        createdBy: String(created.createdBy || quotation.createdBy),
+        createdAt: created.createdAt || quotation.createdAt,
+        validUntil: created.validUntil || quotation.validUntil,
+        totalPrice: Number(created.totalPrice || quotation.totalPrice),
+        discount: Number(created.discount || quotation.discount),
+        finalPrice: Number(created.finalPrice || quotation.finalPrice),
+        status: created.status || quotation.status,
+        notes: created.notes || quotation.notes,
+      };
+      setQuotations(prev => [...prev, newQuotation]);
+    } catch (error) {
+      console.error('Failed to create quotation', error);
+      throw error;
+    }
   };
 
-  const updateQuotation = (id: string, quotation: Partial<Quotation>) => {
-    setQuotations(prev => prev.map(q => q.id === id ? { ...q, ...quotation } : q));
+  const updateQuotation = async (id: string, quotation: Partial<Quotation>) => {
+    try {
+      const backendId = quotations.find(q => q.id === id)?.id || id;
+      const payload: any = {
+        customerId: quotation.customerId ? Number(quotation.customerId) : undefined,
+        packageId: quotation.packageId ? Number(quotation.packageId) : undefined,
+        validUntil: quotation.validUntil,
+        totalPrice: quotation.totalPrice,
+        discount: quotation.discount,
+        finalPrice: quotation.finalPrice,
+        status: quotation.status,
+        notes: quotation.notes,
+      };
+      const updated = await TravelService.updateQuotation(backendId, payload);
+      setQuotations(prev => prev.map(q => q.id === id ? {
+        ...q,
+        customerId: updated.customerId ? String(updated.customerId) : q.customerId,
+        packageId: updated.packageId ? String(updated.packageId) : q.packageId,
+        validUntil: updated.validUntil || q.validUntil,
+        totalPrice: Number(updated.totalPrice ?? q.totalPrice),
+        discount: Number(updated.discount ?? q.discount),
+        finalPrice: Number(updated.finalPrice ?? q.finalPrice),
+        status: updated.status || q.status,
+        notes: updated.notes ?? q.notes,
+      } : q));
+    } catch (error) {
+      console.error('Failed to update quotation', error);
+      throw error;
+    }
   };
 
-  const deleteQuotation = (id: string) => {
-    setQuotations(prev => prev.filter(q => q.id !== id));
+  const deleteQuotation = async (id: string) => {
+    try {
+      const backendId = quotations.find(q => q.id === id)?.id || id;
+      await TravelService.archiveQuotation(backendId);
+      setQuotations(prev => prev.filter(q => q.id !== id));
+    } catch (error) {
+      console.error('Failed to delete quotation', error);
+      throw error;
+    }
   };
 
   useEffect(() => {
@@ -390,6 +569,53 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setPackages(mapped);
       } catch (e) {
         console.error('Failed to load packages', e);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await TravelService.getCustomers({ page: 1, size: 100 });
+        const items = res.data || [];
+        const mapped: Customer[] = items.map((c: any) => ({
+          id: String(c.id),
+          name: c.name || '',
+          email: c.email || '',
+          phone: c.phone || '',
+          type: c.type || 'INDIVIDUAL',
+          companyName: c.companyName,
+          address: c.address || '',
+          preferences: c.preferences || [],
+        }));
+        setCustomers(mapped);
+      } catch (e) {
+        console.error('Failed to load customers', e);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await TravelService.getQuotations({ page: 1, size: 100 });
+        const items = res.data || [];
+        const mapped: Quotation[] = items.map((q: any) => ({
+          id: String(q.id),
+          customerId: String(q.customerId || ''),
+          packageId: String(q.packageId || ''),
+          createdBy: String(q.createdBy || ''),
+          createdAt: q.createdAt || new Date().toISOString(),
+          validUntil: q.validUntil || '',
+          totalPrice: Number(q.totalPrice || 0),
+          discount: Number(q.discount || 0),
+          finalPrice: Number(q.finalPrice || 0),
+          status: q.status || 'DRAFT',
+          notes: q.notes || '',
+        }));
+        setQuotations(mapped);
+      } catch (e) {
+        console.error('Failed to load quotations', e);
       }
     })();
   }, []);

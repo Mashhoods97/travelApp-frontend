@@ -500,6 +500,217 @@ export class TravelService {
       throw new Error(error.response?.data?.message || 'Failed to delete package');
     }
   }
+
+  /**
+   * Get customers with pagination and filters
+   */
+  static async getCustomers(
+    params: QueryParams = { page: 1, size: 10 }
+  ): Promise<PaginatedResponse<any>> {
+    try {
+      const response = await apiClient.get<ApiResponse<any>>(
+        API_ENDPOINTS.CUSTOMER.PAGED,
+        { params }
+      );
+      const payload = response.data;
+      if (payload.success && payload.data) {
+        const page = payload.data;
+        const content = (page.content || []).map((c: any) => ({
+          id: String(c.id),
+          name: c.name || '',
+          email: c.email || '',
+          phone: c.phone || '',
+          type: c.type || 'INDIVIDUAL',
+          companyName: c.companyName,
+          address: c.address || '',
+          preferences: c.preferences || [],
+        }));
+        const normalized: PaginatedResponse<any> = {
+          success: true,
+          statusCode: payload.status ?? 200,
+          data: content,
+          message: payload.message,
+          pagination: {
+            page: page.currentPage ?? params.page ?? 1,
+            limit: page.pageSize ?? params.size ?? 10,
+            total: page.totalElements ?? content.length,
+            totalPages: page.totalPages ?? 1,
+            hasNext: page.hasNext ?? false,
+            hasPrev: page.hasPrevious ?? false,
+          },
+        };
+        return normalized;
+      }
+      throw new Error(payload.message || 'Failed to fetch customers');
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch customers');
+    }
+  }
+
+  static async getCustomerById(id: string | number): Promise<any> {
+    try {
+      const response = await apiClient.get<ApiResponse<any>>(
+        API_ENDPOINTS.CUSTOMER.BY_ID(id)
+      );
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      throw new Error(response.data.message || 'Customer not found');
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Customer not found');
+    }
+  }
+
+  static async createCustomer(payload: any): Promise<any> {
+    try {
+      const response = await apiClient.post<ApiResponse<any>>(
+        API_ENDPOINTS.CUSTOMER.BASE,
+        payload
+      );
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      throw new Error(response.data.message || 'Failed to create customer');
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to create customer');
+    }
+  }
+
+  static async updateCustomer(id: string | number, payload: any): Promise<any> {
+    try {
+      const response = await apiClient.put<ApiResponse<any>>(
+        API_ENDPOINTS.CUSTOMER.BY_ID(id),
+        payload
+      );
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      throw new Error(response.data.message || 'Failed to update customer');
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to update customer');
+    }
+  }
+
+  static async archiveCustomer(id: string | number): Promise<boolean> {
+    try {
+      const response = await apiClient.delete<ApiResponse<null>>(
+        API_ENDPOINTS.CUSTOMER.BY_ID(id)
+      );
+      if (response.data.success) {
+        return true;
+      }
+      throw new Error(response.data.message || 'Failed to delete customer');
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to delete customer');
+    }
+  }
+
+  /**
+   * Get quotations with pagination and filters
+   */
+  static async getQuotations(
+    params: QueryParams = { page: 1, size: 10 }
+  ): Promise<PaginatedResponse<any>> {
+    try {
+      const response = await apiClient.get<ApiResponse<any>>(
+        API_ENDPOINTS.QUOTATION.PAGED,
+        { params }
+      );
+      const payload = response.data;
+      if (payload.success && payload.data) {
+        const page = payload.data;
+        const content = (page.content || []).map((q: any) => ({
+          id: String(q.id),
+          customerId: String(q.customerId || ''),
+          packageId: String(q.packageId || ''),
+          createdBy: String(q.createdBy || ''),
+          createdAt: q.createdAt || new Date().toISOString(),
+          validUntil: q.validUntil || '',
+          totalPrice: Number(q.totalPrice || 0),
+          discount: Number(q.discount || 0),
+          finalPrice: Number(q.finalPrice || 0),
+          status: q.status || 'DRAFT',
+          notes: q.notes || '',
+        }));
+        const normalized: PaginatedResponse<any> = {
+          success: true,
+          statusCode: payload.status ?? 200,
+          data: content,
+          message: payload.message,
+          pagination: {
+            page: page.currentPage ?? params.page ?? 1,
+            limit: page.pageSize ?? params.size ?? 10,
+            total: page.totalElements ?? content.length,
+            totalPages: page.totalPages ?? 1,
+            hasNext: page.hasNext ?? false,
+            hasPrev: page.hasPrevious ?? false,
+          },
+        };
+        return normalized;
+      }
+      throw new Error(payload.message || 'Failed to fetch quotations');
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch quotations');
+    }
+  }
+
+  static async getQuotationById(id: string | number): Promise<any> {
+    try {
+      const response = await apiClient.get<ApiResponse<any>>(
+        API_ENDPOINTS.QUOTATION.BY_ID(id)
+      );
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      throw new Error(response.data.message || 'Quotation not found');
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Quotation not found');
+    }
+  }
+
+  static async createQuotation(payload: any): Promise<any> {
+    try {
+      const response = await apiClient.post<ApiResponse<any>>(
+        API_ENDPOINTS.QUOTATION.BASE,
+        payload
+      );
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      throw new Error(response.data.message || 'Failed to create quotation');
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to create quotation');
+    }
+  }
+
+  static async updateQuotation(id: string | number, payload: any): Promise<any> {
+    try {
+      const response = await apiClient.put<ApiResponse<any>>(
+        API_ENDPOINTS.QUOTATION.BY_ID(id),
+        payload
+      );
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      throw new Error(response.data.message || 'Failed to update quotation');
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to update quotation');
+    }
+  }
+
+  static async archiveQuotation(id: string | number): Promise<boolean> {
+    try {
+      const response = await apiClient.delete<ApiResponse<null>>(
+        API_ENDPOINTS.QUOTATION.BY_ID(id)
+      );
+      if (response.data.success) {
+        return true;
+      }
+      throw new Error(response.data.message || 'Failed to delete quotation');
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to delete quotation');
+    }
+  }
 }
 
 export default TravelService;

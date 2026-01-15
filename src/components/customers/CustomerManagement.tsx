@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useData, Customer } from '../../context/DataContext';
+import TravelService from '../../lib/api/services/travelService';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -16,6 +17,9 @@ export function CustomerManagement() {
   const { customers, addCustomer, updateCustomer, deleteCustomer } = useData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [list, setList] = useState<Customer[]>(customers);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -91,8 +95,41 @@ export function CustomerManagement() {
     });
   };
 
-  const individualCustomers = customers.filter(c => c.type === 'INDIVIDUAL');
-  const b2bClients = customers.filter(c => c.type === 'B2B_CLIENT');
+  useEffect(() => {
+    setList(customers);
+  }, [customers]);
+
+  const performSearch = async () => {
+    try {
+      setLoading(true);
+      const res = await TravelService.getCustomers({ 
+        page: 1, 
+        size: 100, 
+        name: search || undefined,
+        email: search || undefined,
+        sortBy: 'createdAt',
+        sortOrder: 'desc'
+      });
+      const items = (res.data || []).map((c: any) => ({
+        id: String(c.id),
+        name: c.name || '',
+        email: c.email || '',
+        phone: c.phone || '',
+        type: c.type || 'INDIVIDUAL',
+        companyName: c.companyName,
+        address: c.address || '',
+        preferences: c.preferences || [],
+      } as Customer));
+      setList(items);
+    } catch (e) {
+      console.error('Search failed', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const individualCustomers = list.filter(c => c.type === 'INDIVIDUAL');
+  const b2bClients = list.filter(c => c.type === 'B2B_CLIENT');
 
   const CustomerTable = ({ customers }: { customers: Customer[] }) => (
     <Table>
@@ -189,7 +226,10 @@ export function CustomerManagement() {
                 Manage individual customers and B2B clients
               </CardDescription>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <div className="flex items-center gap-2">
+              <Input placeholder="Search by name or email" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" />
+              <Button variant="outline" onClick={performSearch} disabled={loading}>Search</Button>
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button onClick={resetForm}>
                   <Plus className="w-4 h-4 mr-2" />
@@ -319,12 +359,13 @@ export function CustomerManagement() {
                 </form>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="all" className="space-y-4">
             <TabsList>
-              <TabsTrigger value="all">All Customers ({customers.length})</TabsTrigger>
+              <TabsTrigger value="all">All Customers ({list.length})</TabsTrigger>
               <TabsTrigger value="individual">
                 <User className="w-4 h-4 mr-1" />
                 Individual ({individualCustomers.length})
@@ -336,7 +377,7 @@ export function CustomerManagement() {
             </TabsList>
             
             <TabsContent value="all">
-              <CustomerTable customers={customers} />
+              <CustomerTable customers={list} />
             </TabsContent>
             
             <TabsContent value="individual">

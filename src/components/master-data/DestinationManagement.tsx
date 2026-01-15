@@ -40,7 +40,14 @@ export function DestinationManagement() {
   const performSearch = async () => {
     try {
       setLoading(true);
-      const res = await TravelService.getDestinations({ page: 1, size: 12, name: search || undefined });
+      const res = await TravelService.getDestinations({ 
+        page: 1, 
+        size: 12, 
+        name: search || undefined,
+        slug: search || undefined,
+        sortBy: 'createdAt',
+        sortOrder: 'desc'
+      });
       const items = (res.data || []).map((d: any) => ({
         id: String(d.id),
         backendId: Number(d.id),

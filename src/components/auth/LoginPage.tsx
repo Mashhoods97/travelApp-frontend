@@ -16,16 +16,21 @@ export function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('[LoginPage] Form submitted with email:', email);
     setError('');
     setLoading(true);
 
     try {
+      console.log('[LoginPage] Calling login function...');
       const success = await login(email, password);
+      console.log('[LoginPage] Login result:', success);
       if (!success) {
         setError('Invalid email or password');
       }
-    } catch (err) {
-      setError('Login failed. Please try again.');
+    } catch (err: any) {
+      console.error('[LoginPage] Login error caught:', err);
+      console.error('[LoginPage] Error details:', err.message, err.stack);
+      setError(`Login failed: ${err.message || 'Please try again.'}`);
     } finally {
       setLoading(false);
     }

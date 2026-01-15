@@ -10,7 +10,7 @@ export const API_CONFIG = {
   NODE_ENV: import.meta.env.VITE_NODE_ENV || 'development',
   
   // Feature flags
-  ENABLE_LOGGING: import.meta.env.VITE_ENABLE_LOGGING === 'true',
+  ENABLE_LOGGING: import.meta.env.VITE_ENABLE_LOGGING === 'true' || true, // Always enable logging for debugging
   ENABLE_ANALYTICS: import.meta.env.VITE_ENABLE_ANALYTICS === 'true',
   
   // External services
@@ -18,6 +18,11 @@ export const API_CONFIG = {
   STRIPE_PUBLISHABLE_KEY: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
   SENTRY_DSN: import.meta.env.VITE_SENTRY_DSN,
 } as const;
+
+// Log configuration on load
+console.log('[API Config] Base URL:', API_CONFIG.BASE_URL);
+console.log('[API Config] Timeout:', API_CONFIG.TIMEOUT);
+console.log('[API Config] Logging Enabled:', API_CONFIG.ENABLE_LOGGING);
 
 // Validate required configuration
 export const validateConfig = () => {

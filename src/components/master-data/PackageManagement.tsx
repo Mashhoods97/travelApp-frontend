@@ -145,7 +145,14 @@ export function PackageManagement() {
   const performSearch = async () => {
     try {
       setLoading(true);
-      const res = await TravelService.getPackages({ page: 1, size: 12, name: search || undefined, code: search || undefined });
+      const res = await TravelService.getPackages({ 
+        page: 1, 
+        size: 12, 
+        name: search || undefined,
+        slug: search || undefined,
+        sortBy: 'createdAt',
+        sortOrder: 'desc'
+      });
       const items = (res.data || []).map((p: any) => ({
         id: String(p.id),
         name: p.name,
@@ -185,7 +192,7 @@ export function PackageManagement() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Input placeholder="Search by name or code" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" />
+              <Input placeholder="Search by name or slug" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" />
               <Button variant="outline" onClick={performSearch} disabled={loading}>Search</Button>
               <Button onClick={() => navigate('/packages/new')}>
                 <Plus className="w-4 h-4 mr-2" />

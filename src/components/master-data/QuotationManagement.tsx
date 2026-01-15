@@ -1,18 +1,23 @@
-// src/components/quotations/QuotationManagement.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useData } from '../../context/DataContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { FileText, Plus, Edit, Send, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Badge } from '../ui/badge';
-import { User, Building, Download, Eye } from 'lucide-react';
+import { User, Building } from 'lucide-react';
+import TravelService from '../../lib/api/services/travelService';
+import { Quotation } from '../../context/DataContext';
 
 export function QuotationManagement() {
-  const { quotations, customers, packages, updateQuotation } = useData();
+  const { quotations: initialQuotations, customers, packages, updateQuotation } = useData();
   const navigate = useNavigate();
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [quotations, setQuotations] = useState<Quotation[]>(initialQuotations);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -29,6 +34,42 @@ export function QuotationManagement() {
       case 'REJECTED': return 'bg-red-100 text-red-800';
       case 'SENT': return 'bg-blue-100 text-blue-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  useEffect(() => {
+    setQuotations(initialQuotations);
+  }, [initialQuotations]);
+
+  const performSearch = async () => {
+    try {
+      setLoading(true);
+      const res = await TravelService.getQuotations({ 
+        page: 1, 
+        size: 100, 
+        quotationNumber: search || undefined,
+        clientName: search || undefined,
+        sortBy: 'createdAt',
+        sortOrder: 'desc'
+      });
+      const items = (res.data || []).map((q: any) => ({
+        id: String(q.id),
+        customerId: String(q.customerId || ''),
+        packageId: String(q.packageId || ''),
+        createdBy: String(q.createdBy || ''),
+        createdAt: q.createdAt || new Date().toISOString(),
+        validUntil: q.validUntil || '',
+        totalPrice: Number(q.totalPrice || 0),
+        discount: Number(q.discount || 0),
+        finalPrice: Number(q.finalPrice || 0),
+        status: q.status || 'DRAFT',
+        notes: q.notes || '',
+      } as Quotation));
+      setQuotations(items);
+    } catch (e) {
+      console.error('Search failed', e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -95,14 +136,14 @@ export function QuotationManagement() {
               </TableCell>
 
               <TableCell>
-                <div className="flex space-x-1">
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/quotations/${quotation.id}`)}>
-                    <Edit className="w-3 h-3 mr-1" /> Edit
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/quotations/view/${quotation.id}`)}>
-                    <Eye className="w-3 h-3 mr-1" /> View
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/quotations/${quotation.id}`)}
+                >
+                  <Edit className="w-4 h-4 mr-1" />
+                  Edit
+                </Button>
               </TableCell>
             </TableRow>
           );
@@ -123,7 +164,9 @@ export function QuotationManagement() {
               </CardTitle>
               <CardDescription>Create and manage travel quotations for customers</CardDescription>
             </div>
-            <div>
+            <div className="flex items-center gap-2">
+              <Input placeholder="Search by quotation number or client name" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" />
+              <Button variant="outline" onClick={performSearch} disabled={loading}>Search</Button>
               <Button onClick={() => navigate('/quotations/new')}>
                 <Plus className="w-4 h-4 mr-2" />
                 Create Quotation

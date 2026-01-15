@@ -167,7 +167,14 @@ export function HotelManagement() {
   const performSearch = async () => {
     try {
       setLoading(true);
-      const res = await TravelService.getHotels({ page: 1, size: 12, name: search || undefined });
+      const res = await TravelService.getHotels({ 
+        page: 1, 
+        size: 12, 
+        name: search || undefined,
+        slug: search || undefined,
+        sortBy: 'createdAt',
+        sortOrder: 'desc'
+      });
       const items = (res.data || []).map((h: any) => {
         const amenitiesMap = (h.amenities || {}) as Record<string, any>;
         const amenityList = Object.entries(amenitiesMap)

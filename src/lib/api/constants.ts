@@ -44,6 +44,16 @@ export const API_ENDPOINTS = {
     BY_ID: (id: string | number) => `/packages/${id}`,
     PAGED: '/packages/paged',
   },
+  CUSTOMER: {
+    BASE: '/customers',
+    BY_ID: (id: string | number) => `/customers/${id}`,
+    PAGED: '/customers/paged',
+  },
+  QUOTATION: {
+    BASE: '/quotations',
+    BY_ID: (id: string | number) => `/quotations/${id}`,
+    PAGED: '/quotations/paged',
+  },
 } as const;
 
 // User Types (static, globally reusable)
