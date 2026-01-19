@@ -164,12 +164,16 @@ export function HotelManagement() {
     setList(hotels);
   }, [hotels]);
 
+  useEffect(() => {
+    performSearch();
+  }, []);
+
   const performSearch = async () => {
     try {
       setLoading(true);
-      const res = await TravelService.getHotels({ 
-        page: 1, 
-        size: 12, 
+      const res = await TravelService.getHotels({
+        page: 1,
+        size: 12,
         name: search || undefined,
         slug: search || undefined,
         sortBy: 'createdAt',
@@ -386,21 +390,21 @@ export function HotelManagement() {
                       {renderStars(hotel.rating)}
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
                     <MapPin className="w-4 h-4" />
                     <span>{hotel.location}</span>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2 text-sm text-gray-600 mb-3">
                     <DollarSign className="w-4 h-4" />
                     <span>${hotel.pricePerNight}/night</span>
                   </div>
-                  
+
                   <p className="text-sm text-gray-600 mb-3 line-clamp-2">
                     {hotel.description}
                   </p>
-                  
+
                   <div className="flex flex-wrap gap-1 mb-4">
                     {hotel.amenities.slice(0, 3).map((amenity) => (
                       <Badge key={amenity} variant="outline" className="text-xs">
@@ -413,7 +417,7 @@ export function HotelManagement() {
                       </Badge>
                     )}
                   </div>
-                  
+
                   <div className="flex space-x-2">
                     <Button
                       variant="outline"

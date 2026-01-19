@@ -48,6 +48,7 @@ export const API_ENDPOINTS = {
     BASE: '/customers',
     BY_ID: (id: string | number) => `/customers/${id}`,
     PAGED: '/customers/paged',
+    GET: '/customers/get',
   },
   QUOTATION: {
     BASE: '/quotations',

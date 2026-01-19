@@ -34,8 +34,8 @@ export function PackageManagement() {
     itinerary: [] as string[],
     image: '',
     description: '',
-    validFrom: '' as string | '' ,
-    validTo: '' as string | '' ,
+    validFrom: '' as string | '',
+    validTo: '' as string | '',
   });
   const [inclusionInput, setInclusionInput] = useState('');
   const [exclusionInput, setExclusionInput] = useState('');
@@ -45,20 +45,20 @@ export function PackageManagement() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const packageData = {
       ...formData,
       validFrom: formData.validFrom || null,
       validTo: formData.validTo || null,
       image: formData.image || defaultImage
     };
-    
+
     if (editingPackage) {
       updatePackage(editingPackage.id, packageData);
     } else {
       addPackage(packageData);
     }
-    
+
     resetForm();
     setIsDialogOpen(false);
   };
@@ -142,12 +142,16 @@ export function PackageManagement() {
     setList(packages);
   }, [packages]);
 
+  useEffect(() => {
+    performSearch();
+  }, []);
+
   const performSearch = async () => {
     try {
       setLoading(true);
-      const res = await TravelService.getPackages({ 
-        page: 1, 
-        size: 12, 
+      const res = await TravelService.getPackages({
+        page: 1,
+        size: 12,
         name: search || undefined,
         slug: search || undefined,
         sortBy: 'createdAt',
@@ -206,7 +210,7 @@ export function PackageManagement() {
             {list.map((pkg) => {
               const packageDestinations = getPackageDestinations(pkg.destinations);
               const packageHotels = getPackageHotels(pkg.hotels);
-              
+
               return (
                 <Card key={pkg.id} className="overflow-hidden">
                   <div className="aspect-video relative overflow-hidden">
@@ -223,18 +227,18 @@ export function PackageManagement() {
                         {pkg.duration} days
                       </Badge>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
                       <DollarSign className="w-4 h-4" />
                       <span>${pkg.basePrice}</span>
                       <Calendar className="w-4 h-4 ml-2" />
                       <span>{pkg.duration} days</span>
                     </div>
-                    
+
                     <p className="text-sm text-gray-600 mb-3 line-clamp-2">
                       {pkg.description}
                     </p>
-                    
+
                     <div className="space-y-2 mb-4">
                       <div>
                         <div className="flex items-center space-x-1 mb-1">
@@ -254,7 +258,7 @@ export function PackageManagement() {
                           )}
                         </div>
                       </div>
-                      
+
                       <div>
                         <div className="flex items-center space-x-1 mb-1">
                           <Building2 className="w-3 h-3" />
@@ -274,7 +278,7 @@ export function PackageManagement() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex space-x-2">
                       <Button
                         variant="outline"

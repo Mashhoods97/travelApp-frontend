@@ -37,12 +37,16 @@ export function DestinationManagement() {
     setList(destinations);
   }, [destinations]);
 
+  useEffect(() => {
+    performSearch();
+  }, []);
+
   const performSearch = async () => {
     try {
       setLoading(true);
-      const res = await TravelService.getDestinations({ 
-        page: 1, 
-        size: 12, 
+      const res = await TravelService.getDestinations({
+        page: 1,
+        size: 12,
         name: search || undefined,
         slug: search || undefined,
         sortBy: 'createdAt',
@@ -123,7 +127,7 @@ export function DestinationManagement() {
                     <span>Language: {destination.language || '-'}</span>
                     <span className="ml-3">Currency: {destination.currency || '-'}</span>
                   </div>
-                  
+
                   <div className="mb-4">
                     <p className="text-sm mb-2">Popular Attractions:</p>
                     <div className="flex flex-wrap gap-1">
@@ -139,7 +143,7 @@ export function DestinationManagement() {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="flex space-x-2">
                     <Button
                       variant="outline"

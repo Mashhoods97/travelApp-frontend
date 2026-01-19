@@ -1,11 +1,11 @@
 import apiClient from '../client';
 import { API_ENDPOINTS } from '../constants';
-import { 
-  Destination, 
-  Hotel, 
-  Flight, 
-  Booking, 
-  PaginationParams, 
+import {
+  Destination,
+  Hotel,
+  Flight,
+  Booking,
+  PaginationParams,
   PaginatedResponse,
   ApiResponse,
   QueryParams,
@@ -42,7 +42,7 @@ export class TravelService {
         }));
         const normalized: PaginatedResponse<Destination> = {
           success: true,
-          statusCode: payload.status ?? 200,
+          statusCode: payload.statusCode ?? 200,
           data: content,
           message: payload.message,
           pagination: {
@@ -70,11 +70,11 @@ export class TravelService {
       const response = await apiClient.get<ApiResponse<Destination>>(
         API_ENDPOINTS.DESTINATION.BY_ID(id)
       );
-      
+
       if (response.data.success && response.data.data) {
         return response.data.data;
       }
-      
+
       throw new Error(response.data.message || 'Destination not found');
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Destination not found');
@@ -205,11 +205,11 @@ export class TravelService {
       const response = await apiClient.get<ApiResponse<Hotel>>(
         API_ENDPOINTS.HOTEL.BY_ID(id)
       );
-      
+
       if (response.data.success && response.data.data) {
         return response.data.data as any;
       }
-      
+
       throw new Error(response.data.message || 'Hotel not found');
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Hotel not found');
@@ -271,11 +271,11 @@ export class TravelService {
         API_ENDPOINTS.TRAVEL.FLIGHTS,
         { params }
       );
-      
+
       if (response.data.success) {
         return response.data;
       }
-      
+
       throw new Error(response.data.message || 'Failed to fetch flights');
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to fetch flights');
@@ -290,11 +290,11 @@ export class TravelService {
       const response = await apiClient.get<ApiResponse<Flight>>(
         `${API_ENDPOINTS.TRAVEL.FLIGHTS}/${id}`
       );
-      
+
       if (response.data.success && response.data.data) {
         return response.data.data;
       }
-      
+
       throw new Error(response.data.message || 'Flight not found');
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Flight not found');
@@ -317,11 +317,11 @@ export class TravelService {
         `${API_ENDPOINTS.TRAVEL.FLIGHTS}/search`,
         { params: searchParams }
       );
-      
+
       if (response.data.success && response.data.data) {
         return response.data.data;
       }
-      
+
       throw new Error(response.data.message || 'Flight search failed');
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Flight search failed');
@@ -339,11 +339,11 @@ export class TravelService {
         API_ENDPOINTS.TRAVEL.BOOKINGS,
         { params }
       );
-      
+
       if (response.data.success) {
         return response.data;
       }
-      
+
       throw new Error(response.data.message || 'Failed to fetch bookings');
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to fetch bookings');
@@ -366,11 +366,11 @@ export class TravelService {
         API_ENDPOINTS.TRAVEL.BOOKINGS,
         bookingData
       );
-      
+
       if (response.data.success && response.data.data) {
         return response.data.data;
       }
-      
+
       throw new Error(response.data.message || 'Failed to create booking');
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to create booking');
@@ -385,7 +385,7 @@ export class TravelService {
       const response = await apiClient.delete<ApiResponse>(
         `${API_ENDPOINTS.TRAVEL.BOOKINGS}/${bookingId}`
       );
-      
+
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to cancel booking');
       }
@@ -602,6 +602,22 @@ export class TravelService {
       throw new Error(response.data.message || 'Failed to delete customer');
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to delete customer');
+    }
+  }
+
+  static async searchCustomers(name: string): Promise<any[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<any[]>>(
+        API_ENDPOINTS.CUSTOMER.GET,
+        { params: { name } }
+      );
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      return [];
+    } catch (error: any) {
+      console.error('Failed to search customers', error);
+      return [];
     }
   }
 

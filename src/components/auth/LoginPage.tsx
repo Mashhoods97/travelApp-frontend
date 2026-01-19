@@ -83,8 +83,8 @@ export function LoginPage() {
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
-          
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+
+          {/* <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600 mb-2">Demo accounts:</p>
             <div className="space-y-1 text-xs">
               <p><strong>HEAD:</strong> head@travelco.com</p>
@@ -92,7 +92,7 @@ export function LoginPage() {
               <p><strong>SALES:</strong> sales@travelco.com</p>
               <p className="text-gray-500">Password: password</p>
             </div>
-          </div>
+          </div> */}
         </CardContent>
       </Card>
     </div>

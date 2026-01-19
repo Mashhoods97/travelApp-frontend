@@ -60,13 +60,13 @@ apiClient.interceptors.response.use(
     console.error('[API Response Error] Response Headers:', error.response?.headers);
     console.error('[API Response Error] Request Headers:', error.config?.headers);
     console.error('[API Response Error] Request Data:', error.config?.data);
-    
+
     // Check for network errors (no response)
     if (!error.response) {
       console.error('[API Response Error] Network Error - No response from server');
       console.error('[API Response Error] Error code:', error.code);
       console.error('[API Response Error] Error message:', error.message);
-      
+
       // Check for CORS error specifically
       if (error.message?.includes('CORS') || error.message?.includes('cross-origin') || error.code === 'ERR_NETWORK') {
         console.error('========================================');
@@ -97,7 +97,7 @@ apiClient.interceptors.response.use(
         console.error('  5. Firewall blocking the connection');
       }
     }
-    
+
     if (error.response?.status === 401) {
       // Avoid redirect loop flicker; let caller handle in UI
       // Optionally emit an event/flag here instead of hard redirect

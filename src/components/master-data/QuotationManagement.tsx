@@ -41,12 +41,16 @@ export function QuotationManagement() {
     setQuotations(initialQuotations);
   }, [initialQuotations]);
 
+  useEffect(() => {
+    performSearch();
+  }, []);
+
   const performSearch = async () => {
     try {
       setLoading(true);
-      const res = await TravelService.getQuotations({ 
-        page: 1, 
-        size: 100, 
+      const res = await TravelService.getQuotations({
+        page: 1,
+        size: 100,
         quotationNumber: search || undefined,
         clientName: search || undefined,
         sortBy: 'createdAt',
