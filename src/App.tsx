@@ -7,7 +7,7 @@ import { UserManagement } from './components/users/UserManagement';
 import { HotelManagement } from './components/master-data/HotelManagement';
 import { DestinationManagement } from './components/master-data/DestinationManagement';
 import { PackageManagement } from './components/master-data/PackageManagement';
-import { CustomerManagement } from './components/customers/CustomerManagement';
+import { CustomerManagement } from '@/components/customers/CustomerManagement';
 import { QuotationManagement } from './components/master-data/QuotationManagement';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
