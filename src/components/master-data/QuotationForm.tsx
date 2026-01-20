@@ -26,6 +26,7 @@ export default function QuotationFormPage() {
   const [openCustomer, setOpenCustomer] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerOptions, setCustomerOptions] = useState<{ id: string, name: string, companyName?: string }[]>([]);
+  const [packageOptions, setPackageOptions] = useState<Package[]>([]);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -42,34 +43,57 @@ export default function QuotationFormPage() {
     notes: ''
   });
 
-  // Load initial data
+  // 1. Load initial dropdown data (RUNS ONCE)
+  useEffect(() => {
+    (async () => {
+      try {
+        const [custRes, pkgRes] = await Promise.all([
+          TravelService.searchCustomers(''),
+          TravelService.searchPackages('')
+        ]);
+
+        const cItems = (custRes || []).map((c: any) => ({
+          id: String(c.id),
+          name: (c.firstName && c.lastName) ? `${c.firstName} ${c.lastName}` : (c.name || c.username || 'Unknown Customer'),
+          companyName: c.companyName
+        }));
+        setCustomerOptions(cItems);
+
+        const pItems = (pkgRes || []).map((p: any) => ({
+          id: String(p.id),
+          name: p.title || p.name || p.label || 'Unknown Package',
+          basePrice: Number(p.price || p.basePrice || p.cost || 0),
+          ...p
+        }));
+        setPackageOptions(pItems);
+      } catch (e) { console.error('Failed to load dropdown data', e); }
+    })();
+  }, []);
+
+  // 2. Load quotation data (RUNS ON ID CHANGE)
   useEffect(() => {
     if (!isEdit) {
       if (user?.id) setFormData(prev => ({ ...prev, userId: Number(user.id) }));
       return;
     }
+
     (async () => {
       try {
         setLoading(true);
-        const q = quotations.find(x => String(x.id) === id);
+        const q = await TravelService.getQuotationById(String(id));
 
         if (q) {
-          if (q.customerId) {
-            const c = await TravelService.getCustomerById(q.customerId);
-            if (c) setCustomerOptions([c]);
-          }
-
           setFormData({
-            title: (q as any).title || '',
+            title: q.title || '',
             customerId: Number(q.customerId),
             packageId: Number(q.packageId),
-            userId: Number(q.createdBy || user?.id || 0),
-            bookingDate: (q as any).bookingDate ? new Date((q as any).bookingDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-            travelDate: (q as any).travelDate ? new Date((q as any).travelDate).toISOString().split('T')[0] : '',
-            paxCount: (q as any).paxCount || 1,
-            totalPrice: q.totalPrice,
-            discount: q.discount,
-            finalPrice: q.finalPrice,
+            userId: Number(q.userId || q.createdBy || user?.id || 0),
+            bookingDate: q.bookingDate ? new Date(q.bookingDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            travelDate: q.travelDate ? new Date(q.travelDate).toISOString().split('T')[0] : '',
+            paxCount: Number(q.paxCount || 1),
+            totalPrice: Number(q.totalPrice),
+            discount: Number(q.discount),
+            finalPrice: Number(q.finalPrice),
             status: typeof q.status === 'number' ? q.status : (q.status === 'APPROVED' ? 2 : q.status === 'SENT' ? 1 : q.status === 'REJECTED' ? 3 : 0),
             notes: q.notes || ''
           });
@@ -80,26 +104,44 @@ export default function QuotationFormPage() {
         setLoading(false);
       }
     })();
-  }, [id, isEdit, quotations, user]);
+  }, [id, isEdit, user]);
 
+  // 3. Ensure Customer Exists in Dropdown (RUNS WHEN FORM DATA OR OPTIONS CHANGE - STABLE CHECK)
   useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (customerSearch) {
-        TravelService.searchCustomers(customerSearch).then(res => {
-          // API might return array or object with data property depending on implementation
-          // Assuming TravelService.searchCustomers returns array directly based on previous code usage
-          // But let's be safe
-          const list = Array.isArray(res) ? res : (res as any)?.data || [];
-          setCustomerOptions(list);
-        });
-      }
-    }, 300);
-    return () => clearTimeout(delayDebounceFn);
-  }, [customerSearch]);
+    const cId = String(formData.customerId);
+    if (!cId || cId === '0') return;
+
+    // Check if customer is already in the list
+    const exists = customerOptions.some(opt => String(opt.id) === cId);
+
+    if (!exists) {
+      // If not, fetch and add it. Running asynchronously.
+      (async () => {
+        try {
+          const cust = await TravelService.getCustomerById(cId);
+          if (cust) {
+            const newOption = {
+              id: String(cust.id),
+              name: (cust.firstName && cust.lastName) ? `${cust.firstName} ${cust.lastName}` : (cust.name || cust.username || 'Unknown Customer'),
+              companyName: cust.companyName
+            };
+            // Functional update ensures no race conditions and only adds if still missing
+            setCustomerOptions(prev => {
+              if (prev.some(p => String(p.id) === cId)) return prev;
+              return [...prev, newOption];
+            });
+          }
+        } catch (err) {
+          console.error('Failed to load specific customer', err);
+        }
+      })();
+    }
+  }, [formData.customerId, customerOptions]);
+
 
   const handlePackageChange = (val: string) => {
     const pkgId = Number(val);
-    const selectedPackage = packages.find(p => Number(p.id) === pkgId);
+    const selectedPackage = packageOptions.find(p => Number(p.id) === pkgId);
     if (selectedPackage) {
       const base = selectedPackage.basePrice ?? 0;
       setFormData(prev => ({
@@ -177,55 +219,23 @@ export default function QuotationFormPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col space-y-2">
-                  <Label>Customer</Label>
-                  <Popover open={openCustomer} onOpenChange={setOpenCustomer}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={openCustomer}
-                        className="w-full justify-between"
-                      >
-                        {formData.customerId
-                          ? customerOptions.find((c) => String(c.id) === String(formData.customerId))?.name || "Select Customer..."
-                          : "Search Customer..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                      <Command shouldFilter={false}>
-                        <CommandInput
-                          placeholder="Type name to search..."
-                          value={customerSearch}
-                          onValueChange={setCustomerSearch}
-                        />
-                        <CommandList>
-                          <CommandEmpty>No customer found.</CommandEmpty>
-                          <CommandGroup>
-                            {customerOptions.map((c) => (
-                              <CommandItem
-                                key={c.id}
-                                value={String(c.id)}
-                                onSelect={(currentValue) => {
-                                  setFormData({ ...formData, customerId: Number(c.id) });
-                                  setOpenCustomer(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    String(formData.customerId) === String(c.id) ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {c.name} {c.companyName ? `(${c.companyName})` : ''}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                <div>
+                  <Label htmlFor="customerId">Customer</Label>
+                  <Select
+                    value={String(formData.customerId || '')}
+                    onValueChange={(v) => setFormData({ ...formData, customerId: Number(v) })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={formData.customerId ? "Customer Selected" : "Select Customer"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customerOptions.map(c => (
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          {c.name} {c.companyName ? `(${c.companyName})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
@@ -233,7 +243,7 @@ export default function QuotationFormPage() {
                   <Select value={String(formData.packageId || '')} onValueChange={handlePackageChange}>
                     <SelectTrigger id="packageId"><SelectValue placeholder="Select package" /></SelectTrigger>
                     <SelectContent>
-                      {packages.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name} - ${p.basePrice}</SelectItem>)}
+                      {packageOptions.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name} - ${p.basePrice}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>

@@ -3,393 +3,201 @@ import { useData, Customer } from '../../context/DataContext';
 import TravelService from '../../lib/api/services/travelService';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Badge } from '../ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { UserCheck, Plus, Edit, Trash2, User, Building, Mail, Phone, MapPin } from 'lucide-react';
+import { Plus, Mail, Phone, MapPin, Search, Pencil, Trash2, Building, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export function CustomerManagement() {
-  const { customers, addCustomer, updateCustomer, deleteCustomer } = useData();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [list, setList] = useState<Customer[]>(customers);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    type: 'INDIVIDUAL' as 'INDIVIDUAL' | 'B2B_CLIENT',
-    companyName: '',
-    address: '',
-    preferences: [] as string[]
-  });
-  const [preferenceInput, setPreferenceInput] = useState('');
+    const navigate = useNavigate();
+    const { customers, deleteCustomer } = useData();
+    const [loading, setLoading] = useState(false);
+    const [list, setList] = useState<Customer[]>([]);
+    const [search, setSearch] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (editingCustomer) {
-      updateCustomer(editingCustomer.id, formData);
-    } else {
-      addCustomer(formData);
-    }
-    
-    resetForm();
-    setIsDialogOpen(false);
-  };
+    const performSearch = async () => {
+        try {
+            setLoading(true);
+            const res = await TravelService.getCustomers({
+                page: 1,
+                size: 100,
+                name: search || undefined,
+                email: search || undefined,
+                sortBy: 'createdAt',
+                sortOrder: 'desc'
+            });
+            const items = (res.data || []).map((c: any) => ({
+                id: String(c.id),
+                firstName: c.firstName,
+                lastName: c.lastName,
+                name: (c.firstName && c.lastName) ? `${c.firstName} ${c.lastName}` : (c.name || c.username || 'Unknown Customer'),
+                email: c.email || '',
+                phone: c.phone || '',
+                type: c.type || 'INDIVIDUAL',
+                companyName: c.companyName,
+                address: c.address || '',
+                city: c.city,
+                state: c.state,
+                country: c.country,
+                postalCode: c.postalCode,
+                preferences: c.preferences || [],
+            } as Customer));
+            setList(items);
+        } catch (e) {
+            console.error('Search failed', e);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      type: 'INDIVIDUAL',
-      companyName: '',
-      address: '',
-      preferences: []
-    });
-    setPreferenceInput('');
-    setEditingCustomer(null);
-  };
+    useEffect(() => {
+        performSearch();
+    }, []);
 
-  const handleEdit = (customer: Customer) => {
-    setEditingCustomer(customer);
-    setFormData({
-      name: customer.name,
-      email: customer.email,
-      phone: customer.phone,
-      type: customer.type,
-      companyName: customer.companyName || '',
-      address: customer.address,
-      preferences: customer.preferences
-    });
-    setIsDialogOpen(true);
-  };
+    const handleEdit = (customer: Customer) => {
+        navigate(`/customers/${customer.id}`);
+    };
 
-  const handleDelete = (customerId: string) => {
-    if (confirm('Are you sure you want to delete this customer?')) {
-      deleteCustomer(customerId);
-    }
-  };
+    const handleDelete = async (id: string) => {
+        if (window.confirm('Are you sure you want to delete this customer?')) {
+            await deleteCustomer(id);
+            performSearch();
+        }
+    };
 
-  const addPreference = () => {
-    if (preferenceInput.trim() && !formData.preferences.includes(preferenceInput.trim())) {
-      setFormData({
-        ...formData,
-        preferences: [...formData.preferences, preferenceInput.trim()]
-      });
-      setPreferenceInput('');
-    }
-  };
+    const individualCustomers = list.filter(c => c.type === 'INDIVIDUAL');
+    const b2bClients = list.filter(c => c.type === 'B2B_CLIENT');
 
-  const removePreference = (preference: string) => {
-    setFormData({
-      ...formData,
-      preferences: formData.preferences.filter(p => p !== preference)
-    });
-  };
+    const CustomerTable = ({ customers }: { customers: Customer[] }) => (
+        <div className="rounded-md border">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Contact</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {customers.length === 0 ? (
+                        <TableRow><TableCell colSpan={5} className="text-center">No customers found.</TableCell></TableRow>
+                    ) : customers.map((customer) => (
+                        <TableRow key={customer.id}>
+                            <TableCell>
+                                <div>
+                                    <p className="font-medium">{customer.name}</p>
+                                    {customer.companyName && (
+                                        <p className="text-sm text-muted-foreground">{customer.companyName}</p>
+                                    )}
+                                </div>
+                            </TableCell>
+                            <TableCell>
+                                <div className="space-y-1">
+                                    <div className="flex items-center space-x-1">
+                                        <Mail className="w-3 h-3 text-muted-foreground" />
+                                        <span className="text-sm">{customer.email}</span>
+                                    </div>
+                                    {customer.phone && (
+                                        <div className="flex items-center space-x-1">
+                                            <Phone className="w-3 h-3 text-muted-foreground" />
+                                            <span className="text-sm">{customer.phone}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </TableCell>
+                            <TableCell>
+                                <Badge variant={customer.type === 'B2B_CLIENT' ? 'secondary' : 'outline'}>
+                                    {customer.type === 'B2B_CLIENT' ? 'Business' : 'Individual'}
+                                </Badge>
+                            </TableCell>
+                            <TableCell>
+                                {customer.city || customer.country ? (
+                                    <div className="flex items-center space-x-1">
+                                        <MapPin className="w-3 h-3 text-muted-foreground" />
+                                        <span className="text-sm">
+                                            {[customer.city, customer.country].filter(Boolean).join(', ')}
+                                        </span>
+                                    </div>
+                                ) : '-'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                                <div className="flex justify-end space-x-2">
+                                    <Button variant="ghost" size="icon" onClick={() => handleEdit(customer)}>
+                                        <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600" onClick={() => handleDelete(customer.id)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
+    );
 
-  useEffect(() => {
-    setList(customers);
-  }, [customers]);
-
-  const performSearch = async () => {
-    try {
-      setLoading(true);
-      const res = await TravelService.getCustomers({ 
-        page: 1, 
-        size: 100, 
-        name: search || undefined,
-        email: search || undefined,
-        sortBy: 'createdAt',
-        sortOrder: 'desc'
-      });
-      const items = (res.data || []).map((c: any) => ({
-        id: String(c.id),
-        name: c.name || '',
-        email: c.email || '',
-        phone: c.phone || '',
-        type: c.type || 'INDIVIDUAL',
-        companyName: c.companyName,
-        address: c.address || '',
-        preferences: c.preferences || [],
-      } as Customer));
-      setList(items);
-    } catch (e) {
-      console.error('Search failed', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const individualCustomers = list.filter(c => c.type === 'INDIVIDUAL');
-  const b2bClients = list.filter(c => c.type === 'B2B_CLIENT');
-
-  const CustomerTable = ({ customers }: { customers: Customer[] }) => (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead>Contact</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Preferences</TableHead>
-          <TableHead>Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {customers.map((customer) => (
-          <TableRow key={customer.id}>
-            <TableCell>
-              <div>
-                <p>{customer.name}</p>
-                {customer.companyName && (
-                  <p className="text-sm text-gray-600">{customer.companyName}</p>
-                )}
-              </div>
-            </TableCell>
-            <TableCell>
-              <div className="space-y-1">
-                <div className="flex items-center space-x-1">
-                  <Mail className="w-3 h-3" />
-                  <span className="text-sm">{customer.email}</span>
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight">Customers</h2>
+                    <p className="text-muted-foreground">Manage your customer database</p>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <Phone className="w-3 h-3" />
-                  <span className="text-sm">{customer.phone}</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <MapPin className="w-3 h-3" />
-                  <span className="text-sm text-gray-600">{customer.address}</span>
-                </div>
-              </div>
-            </TableCell>
-            <TableCell>
-              <Badge variant={customer.type === 'B2B_CLIENT' ? 'default' : 'secondary'}>
-                {customer.type === 'B2B_CLIENT' ? 'B2B Client' : 'Individual'}
-              </Badge>
-            </TableCell>
-            <TableCell>
-              <div className="flex flex-wrap gap-1">
-                {customer.preferences.slice(0, 2).map((preference) => (
-                  <Badge key={preference} variant="outline" className="text-xs">
-                    {preference}
-                  </Badge>
-                ))}
-                {customer.preferences.length > 2 && (
-                  <Badge variant="outline" className="text-xs">
-                    +{customer.preferences.length - 2}
-                  </Badge>
-                )}
-              </div>
-            </TableCell>
-            <TableCell>
-              <div className="flex space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleEdit(customer)}
-                >
-                  <Edit className="w-4 h-4" />
+                <Button onClick={() => navigate('/customers/new')}>
+                    <Plus className="mr-2 h-4 w-4" /> Add Customer
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDelete(customer.id)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center space-x-2">
-                <UserCheck className="w-5 h-5" />
-                <span>Customer Management</span>
-              </CardTitle>
-              <CardDescription>
-                Manage individual customers and B2B clients
-              </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <Input placeholder="Search by name or email" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" />
-              <Button variant="outline" onClick={performSearch} disabled={loading}>Search</Button>
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={resetForm}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Customer
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
-                  </DialogTitle>
-                  <DialogDescription>
-                    {editingCustomer ? 'Update customer information' : 'Add a new customer or B2B client'}
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit}>
-                  <div className="space-y-4 max-h-96 overflow-y-auto">
-                    <div>
-                      <Label htmlFor="type">Customer Type</Label>
-                      <Select
-                        value={formData.type}
-                        onValueChange={(value: 'INDIVIDUAL' | 'B2B_CLIENT') => 
-                          setFormData({ ...formData, type: value })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="INDIVIDUAL">Individual Customer</SelectItem>
-                          <SelectItem value="B2B_CLIENT">B2B Client</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="name">
-                          {formData.type === 'B2B_CLIENT' ? 'Contact Person' : 'Full Name'}
-                        </Label>
-                        <Input
-                          id="name"
-                          value={formData.name}
-                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="phone">Phone</Label>
-                        <Input
-                          id="phone"
-                          value={formData.phone}
-                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                          required
-                        />
-                      </div>
-                      {formData.type === 'B2B_CLIENT' && (
-                        <div>
-                          <Label htmlFor="companyName">Company Name</Label>
-                          <Input
-                            id="companyName"
-                            value={formData.companyName}
-                            onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                            required
-                          />
+            <Card>
+                <CardHeader>
+                    <CardTitle>Customer Directory</CardTitle>
+                    <CardDescription>
+                        A list of all customers in your system.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center space-x-2 mb-4">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search customers..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="pl-8"
+                                onKeyDown={(e) => e.key === 'Enter' && performSearch()}
+                            />
                         </div>
-                      )}
+                        <Button variant="secondary" onClick={performSearch}>Search</Button>
                     </div>
 
-                    <div>
-                      <Label htmlFor="address">Address</Label>
-                      <Textarea
-                        id="address"
-                        value={formData.address}
-                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        rows={2}
-                        required
-                      />
-                    </div>
+                    <Tabs defaultValue="all" className="space-y-4">
+                        <TabsList>
+                            <TabsTrigger value="all">All ({list.length})</TabsTrigger>
+                            <TabsTrigger value="individual">
+                                Individual ({individualCustomers.length})
+                            </TabsTrigger>
+                            <TabsTrigger value="b2b">
+                                Business ({b2bClients.length})
+                            </TabsTrigger>
+                        </TabsList>
 
-                    <div>
-                      <Label>Travel Preferences</Label>
-                      <div className="flex space-x-2 mt-2">
-                        <Input
-                          value={preferenceInput}
-                          onChange={(e) => setPreferenceInput(e.target.value)}
-                          placeholder="Add preference (e.g., Beach, Adventure, Culture)"
-                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addPreference())}
-                        />
-                        <Button type="button" onClick={addPreference}>Add</Button>
-                      </div>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {formData.preferences.map((preference) => (
-                          <Badge
-                            key={preference}
-                            variant="secondary"
-                            className="cursor-pointer"
-                            onClick={() => removePreference(preference)}
-                          >
-                            {preference} ×
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <DialogFooter className="mt-6">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">
-                      {editingCustomer ? 'Update' : 'Create'} Customer
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="all" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="all">All Customers ({list.length})</TabsTrigger>
-              <TabsTrigger value="individual">
-                <User className="w-4 h-4 mr-1" />
-                Individual ({individualCustomers.length})
-              </TabsTrigger>
-              <TabsTrigger value="b2b">
-                <Building className="w-4 h-4 mr-1" />
-                B2B Clients ({b2bClients.length})
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="all">
-              <CustomerTable customers={list} />
-            </TabsContent>
-            
-            <TabsContent value="individual">
-              <CustomerTable customers={individualCustomers} />
-            </TabsContent>
-            
-            <TabsContent value="b2b">
-              <CustomerTable customers={b2bClients} />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </div>
-  );
+                        <TabsContent value="all">
+                            <CustomerTable customers={list} />
+                        </TabsContent>
+                        <TabsContent value="individual">
+                            <CustomerTable customers={individualCustomers} />
+                        </TabsContent>
+                        <TabsContent value="b2b">
+                            <CustomerTable customers={b2bClients} />
+                        </TabsContent>
+                    </Tabs>
+                </CardContent>
+            </Card>
+        </div>
+    );
 }

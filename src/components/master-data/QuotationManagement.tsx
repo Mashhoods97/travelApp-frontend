@@ -5,7 +5,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { FileText, Plus, Edit, Send, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { FileText, Plus, Edit, Send, CheckCircle, XCircle, Clock, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Badge } from '../ui/badge';
 import { User, Building } from 'lucide-react';
@@ -13,7 +13,7 @@ import TravelService from '../../lib/api/services/travelService';
 import { Quotation } from '../../context/DataContext';
 
 export function QuotationManagement() {
-  const { quotations: initialQuotations, customers, packages, updateQuotation } = useData();
+  const { quotations: initialQuotations, customers, packages, updateQuotation, deleteQuotation } = useData();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -51,14 +51,15 @@ export function QuotationManagement() {
       const res = await TravelService.getQuotations({
         page: 1,
         size: 100,
-        quotationNumber: search || undefined,
-        clientName: search || undefined,
+        title: search || undefined,
         sortBy: 'createdAt',
         sortOrder: 'desc'
       });
       const items = (res.data || []).map((q: any) => ({
         id: String(q.id),
+        title: q.title || '',
         customerId: String(q.customerId || ''),
+        customerName: q.customerName,
         packageId: String(q.packageId || ''),
         createdBy: String(q.createdBy || ''),
         createdAt: q.createdAt || new Date().toISOString(),
@@ -85,9 +86,9 @@ export function QuotationManagement() {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Customer</TableHead>
+          <TableHead>Quotation Details</TableHead>
           <TableHead>Package</TableHead>
-          <TableHead>Amount</TableHead>
+          <TableHead>Total Amount</TableHead>
           <TableHead>Valid Until</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Actions</TableHead>
@@ -101,12 +102,13 @@ export function QuotationManagement() {
           return (
             <TableRow key={quotation.id}>
               <TableCell>
-                <div className="flex items-center space-x-2">
-                  {customer?.type === 'B2B_CLIENT' ? <Building className="w-4 h-4" /> : <User className="w-4 h-4" />}
-                  <div>
-                    <p className="text-sm">{customer?.name}</p>
-                    {customer?.companyName && <p className="text-xs text-gray-600">{customer.companyName}</p>}
+                <div className="flex flex-col">
+                  <span className="font-medium">{quotation.title || `Quotation #${quotation.id}`}</span>
+                  <div className="flex items-center text-sm text-gray-500 mt-1">
+                    {customer?.type === 'B2B_CLIENT' ? <Building className="w-3 h-3 mr-1" /> : <User className="w-3 h-3 mr-1" />}
+                    <span>{quotation.customerName || customer?.name || 'Unknown Customer'}</span>
                   </div>
+                  {customer?.companyName && <span className="text-xs text-gray-400 ml-4">{customer.companyName}</span>}
                 </div>
               </TableCell>
 
@@ -119,8 +121,8 @@ export function QuotationManagement() {
 
               <TableCell>
                 <div>
-                  <p className="text-sm">${quotation.finalPrice?.toLocaleString?.() ?? quotation.finalPrice}</p>
-                  {quotation.discount > 0 && <p className="text-xs text-gray-600">Discount: ${quotation.discount}</p>}
+                  <p className="text-sm font-medium">${quotation.totalPrice?.toLocaleString?.() ?? quotation.totalPrice}</p>
+                  {quotation.discount > 0 && <p className="text-xs text-gray-500">Disc: ${quotation.discount}</p>}
                 </div>
               </TableCell>
 
@@ -140,14 +142,33 @@ export function QuotationManagement() {
               </TableCell>
 
               <TableCell>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate(`/quotations/${quotation.id}`)}
-                >
-                  <Edit className="w-4 h-4 mr-1" />
-                  Edit
-                </Button>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/quotations/${quotation.id}`)}
+                  >
+                    <Edit className="w-4 h-4 mr-1" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={async () => {
+                      if (confirm('Are you sure you want to delete this quotation?')) {
+                        try {
+                          await deleteQuotation(quotation.id);
+                          // Refresh list
+                          performSearch();
+                        } catch (e) {
+                          console.error('Failed to delete', e);
+                        }
+                      }
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           );

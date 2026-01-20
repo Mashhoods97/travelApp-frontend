@@ -12,6 +12,7 @@ import { QuotationManagement } from './components/master-data/QuotationManagemen
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import DestinationFormPage from './components/master-data/DestinationFormPage';
+import CustomerFormPage from './components/customers/CustomerFormPage';
 import HotelFormPage from './components/master-data/HotelFormPage';
 import PackageFormPage from './components/master-data/PackageFormPage';
 import QuotationFormPage from './components/master-data/QuotationForm';
@@ -46,9 +47,11 @@ function AppContent() {
             <Route path="/packages/new" element={<PackageFormPage />} />
             <Route path="/packages/:id" element={<PackageFormPage />} />
             <Route path="/customers" element={<CustomerManagement />} />
+            <Route path="/customers/new" element={<CustomerFormPage />} />
+            <Route path="/customers/:id" element={<CustomerFormPage />} />
             <Route path="/quotations" element={<QuotationManagement />} />
-            <Route path="/quotations/new" element={<QuotationFormPage />} /> 
-            <Route path="/quotations/:id" element={<QuotationFormPage />} /> 
+            <Route path="/quotations/new" element={<QuotationFormPage />} />
+            <Route path="/quotations/:id" element={<QuotationFormPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </main>

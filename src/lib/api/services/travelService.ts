@@ -177,7 +177,7 @@ export class TravelService {
         }));
         const normalized: PaginatedResponse<Hotel> = {
           success: true,
-          statusCode: payload.status ?? 200,
+          statusCode: payload.statusCode ?? 200,
           data: content,
           message: payload.message,
           pagination: {
@@ -423,7 +423,7 @@ export class TravelService {
         }));
         const normalized: PaginatedResponse<any> = {
           success: true,
-          statusCode: payload.status ?? 200,
+          statusCode: payload.statusCode ?? 200,
           data: content,
           message: payload.message,
           pagination: {
@@ -501,6 +501,40 @@ export class TravelService {
     }
   }
 
+  static async searchPackages(name?: string): Promise<any[]> {
+    try {
+      // Backend requires name param to be present even if empty
+      const params = { name: name || '' };
+
+      const response = await apiClient.get<any>(
+        API_ENDPOINTS.PACKAGE.GET,
+        { params }
+      );
+
+      // Handle Map/Record response { "1": "package1" }
+      const payload = response.data;
+      if (payload.success && payload.data && !Array.isArray(payload.data) && typeof payload.data === 'object') {
+        return Object.entries(payload.data).map(([id, val]) => ({
+          id: String(id),
+          name: val as string,
+          title: val as string // redundancy
+        }));
+      }
+
+      // Handle both wrapped ApiResponse and direct array
+      if (Array.isArray(payload)) {
+        return payload;
+      }
+      if (response.data.success && Array.isArray(response.data.data)) {
+        return response.data.data;
+      }
+      return [];
+    } catch (error: any) {
+      console.error('Failed to search packages', error);
+      return [];
+    }
+  }
+
   /**
    * Get customers with pagination and filters
    */
@@ -527,7 +561,7 @@ export class TravelService {
         }));
         const normalized: PaginatedResponse<any> = {
           success: true,
-          statusCode: payload.status ?? 200,
+          statusCode: payload.statusCode ?? 200,
           data: content,
           message: payload.message,
           pagination: {
@@ -605,13 +639,21 @@ export class TravelService {
     }
   }
 
-  static async searchCustomers(name: string): Promise<any[]> {
+  static async searchCustomers(name?: string): Promise<any[]> {
     try {
-      const response = await apiClient.get<ApiResponse<any[]>>(
+      // Backend requires name param to be present even if empty
+      const params = { name: name || '' };
+
+      const response = await apiClient.get<any>(
         API_ENDPOINTS.CUSTOMER.GET,
-        { params: { name } }
+        { params }
       );
-      if (response.data.success && response.data.data) {
+
+      // Handle both wrapped ApiResponse and direct array
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      if (response.data.success && Array.isArray(response.data.data)) {
         return response.data.data;
       }
       return [];
@@ -628,16 +670,19 @@ export class TravelService {
     params: QueryParams = { page: 1, size: 10 }
   ): Promise<PaginatedResponse<any>> {
     try {
-      const response = await apiClient.get<ApiResponse<any>>(
+      const response = await apiClient.get<any>(
         API_ENDPOINTS.QUOTATION.PAGED,
         { params }
       );
       const payload = response.data;
-      if (payload.success && payload.data) {
-        const page = payload.data;
-        const content = (page.content || []).map((q: any) => ({
+
+      // Handle direct array response (if backend returns just list)
+      if (Array.isArray(payload)) {
+        const content = payload.map((q: any) => ({
           id: String(q.id),
+          title: q.title || '',
           customerId: String(q.customerId || ''),
+          customerName: q.customerName || (q.customer ? (q.customer.name || q.customer.firstName + ' ' + q.customer.lastName) : ''),
           packageId: String(q.packageId || ''),
           createdBy: String(q.createdBy || ''),
           createdAt: q.createdAt || new Date().toISOString(),
@@ -648,9 +693,48 @@ export class TravelService {
           status: q.status || 'DRAFT',
           notes: q.notes || '',
         }));
+
+        return {
+          success: true,
+          statusCode: 200,
+          data: content,
+          message: 'Success',
+          pagination: {
+            page: params.page as number ?? 1,
+            limit: params.size as number ?? 10,
+            total: content.length,
+            totalPages: 1,
+            hasNext: false,
+            hasPrev: false,
+          },
+        };
+      }
+
+      // Handle standard wrapped response
+      if (payload.success && payload.data) {
+        const page = payload.data;
+        // If data is array directly
+        const rawContent = Array.isArray(page) ? page : (page.content || []);
+
+        const content = rawContent.map((q: any) => ({
+          id: String(q.id),
+          title: q.title || '',
+          customerId: String(q.customerId || ''),
+          customerName: q.customerName || (q.customer ? (q.customer.name || q.customer.firstName + ' ' + q.customer.lastName) : ''),
+          packageId: String(q.packageId || ''),
+          createdBy: String(q.createdBy || ''),
+          createdAt: q.createdAt || new Date().toISOString(),
+          validUntil: q.validUntil || '',
+          totalPrice: Number(q.totalPrice || 0),
+          discount: Number(q.discount || 0),
+          finalPrice: Number(q.finalPrice || 0),
+          status: q.status || 'DRAFT',
+          notes: q.notes || '',
+        }));
+
         const normalized: PaginatedResponse<any> = {
           success: true,
-          statusCode: payload.status ?? 200,
+          statusCode: payload.statusCode ?? 200,
           data: content,
           message: payload.message,
           pagination: {
@@ -666,6 +750,7 @@ export class TravelService {
       }
       throw new Error(payload.message || 'Failed to fetch quotations');
     } catch (error: any) {
+      console.error('getQuotations error:', error);
       throw new Error(error.response?.data?.message || 'Failed to fetch quotations');
     }
   }

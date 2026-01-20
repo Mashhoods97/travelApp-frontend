@@ -14,106 +14,11 @@ import { useNavigate } from 'react-router-dom';
 
 export function HotelManagement() {
   const navigate = useNavigate();
-  const { hotels, addHotel, updateHotel, deleteHotel } = useData();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingHotel, setEditingHotel] = useState<Hotel | null>(null);
+  const { hotels, deleteHotel } = useData();
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [list, setList] = useState<Hotel[]>(hotels);
-  const [formData, setFormData] = useState({
-    name: '',
-    slug: '',
-    address: '',
-    phone: '',
-    description: '',
-    destinationId: '',
-    starRating: 3,
-    checkInTime: '14:00',
-    checkOutTime: '12:00',
-    amenities: {} as Record<string, any>,
-    image: '',
-  });
-  const [amenityKey, setAmenityKey] = useState('');
-  const [amenityValue, setAmenityValue] = useState('yes');
-  const [destMap, setDestMap] = useState<Record<string, string>>({});
 
-  const defaultImage = "https://images.unsplash.com/photo-1731080647266-85cf1bc27162?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBob3RlbCUyMHJlc29ydHxlbnwxfHx8fDE3NTU4MzAzMDZ8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral";
-
-  const slugify = (v: string) => v.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const payload = {
-      name: formData.name,
-      slug: formData.slug || slugify(formData.name),
-      address: formData.address,
-      phone: formData.phone || undefined,
-      description: formData.description,
-      destinationId: Number(formData.destinationId),
-      starRating: Number(formData.starRating),
-      checkInTime: formData.checkInTime,
-      checkOutTime: formData.checkOutTime,
-      amenities: formData.amenities,
-    };
-    try {
-      if (editingHotel) {
-        const apiId = (editingHotel as any).backendId || editingHotel.id;
-        await TravelService.updateHotel(apiId, payload);
-        // Refetch single for accuracy
-        const updated = await TravelService.getHotelById(String(apiId));
-        updateHotel(editingHotel.id, {
-          name: updated.name,
-          location: updated.address,
-          rating: Number(updated.starRating || 0),
-          pricePerNight: 0,
-          amenities: Object.keys(updated.amenities || {}).filter(k => {
-            const v = (updated.amenities as any)[k];
-            return v === true || v === 'yes' || v === 'Yes' || v === 'YES';
-          }),
-          image: formData.image || defaultImage,
-          description: updated.description,
-        });
-      } else {
-        const created = await TravelService.createHotel(payload);
-        addHotel({
-          id: String(created.id),
-          name: created.name,
-          location: created.address || '',
-          rating: Number(created.starRating || 0),
-          pricePerNight: 0,
-          amenities: Object.keys(created.amenities || {}).filter(k => {
-            const v = (created.amenities as any)[k];
-            return v === true || v === 'yes' || v === 'Yes' || v === 'YES';
-          }),
-          image: formData.image || defaultImage,
-          description: created.description || '',
-        });
-      }
-      resetForm();
-      setIsDialogOpen(false);
-    } catch (err) {
-      console.error('Hotel save failed', err);
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      slug: '',
-      address: '',
-      phone: '',
-      description: '',
-      destinationId: '',
-      starRating: 3,
-      checkInTime: '14:00',
-      checkOutTime: '12:00',
-      amenities: {},
-      image: '',
-    });
-    setAmenityKey('');
-    setAmenityValue('yes');
-    setEditingHotel(null);
-  };
 
   const handleEdit = (hotel: Hotel) => {
     navigate(`/hotels/${(hotel as any).backendId || hotel.id}`);
@@ -132,33 +37,7 @@ export function HotelManagement() {
     }
   };
 
-  const addAmenity = () => {
-    const key = amenityKey.trim();
-    if (!key) return;
-    setFormData({
-      ...formData,
-      amenities: { ...formData.amenities, [key]: amenityValue },
-    });
-    setAmenityKey('');
-    setAmenityValue('yes');
-  };
 
-  const removeAmenity = (key: string) => {
-    const next = { ...formData.amenities };
-    delete next[key];
-    setFormData({ ...formData, amenities: next });
-  };
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const map = await TravelService.getDestinationMap();
-        setDestMap(map || {});
-      } catch (e) {
-        console.error('Failed to load destination map', e);
-      }
-    })();
-  }, []);
 
   useEffect(() => {
     setList(hotels);
